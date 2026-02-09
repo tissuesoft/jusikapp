@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where:*)",
+      "Bash(choco install:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(git clone:*)",
+      "Bash(set \"PATH=C:\\\\Users\\\\user\\\\flutter\\\\bin;%PATH%\")",
+      "Bash(flutter --version:*)",
+      "Bash(cmd /c \"set PATH=C:\\\\Users\\\\user\\\\flutter\\\\bin;%PATH% && flutter --version\")",
+      "Bash(cmd /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat --version\")"
+    ]
+  }
+}
