@@ -8,7 +8,10 @@
       "Bash(set \"PATH=C:\\\\Users\\\\user\\\\flutter\\\\bin;%PATH%\")",
       "Bash(flutter --version:*)",
       "Bash(cmd /c \"set PATH=C:\\\\Users\\\\user\\\\flutter\\\\bin;%PATH% && flutter --version\")",
-      "Bash(cmd /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat --version\")"
+      "Bash(cmd /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat --version\")",
+      "Bash(C:Usersuserflutterbinflutter.bat analyze)",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat analyze\")",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat build web\")"
     ]
   }
 }
