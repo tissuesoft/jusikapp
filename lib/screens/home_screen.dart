@@ -1,155 +1,295 @@
-import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
-import '../models/stock.dart';
-import '../widgets/stock_card.dart';
-import '../widgets/market_summary.dart';
-import 'stock_detail_screen.dart';
+// 홈 화면 (포트폴리오 대시보드) 파일
+// 사용자의 보유 종목 현황, 총 수익률, 총 평가 손익 등을 표시하는 메인 화면
 
-class HomeScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import '../data/mock_portfolio.dart';
+import '../models/portfolio.dart';
+import '../utils/formatters.dart';
+import '../widgets/portfolio_card.dart';
+import '../widgets/add_stock_bottom_sheet.dart';
+import 'ai_analysis_screen.dart';
+import 'settings_screen.dart';
+
+/// 포트폴리오 대시보드 홈 화면 위젯 (StatefulWidget)
+/// 상단 앱바 + 포트폴리오 요약 카드 + 보유 종목 리스트로 구성
+/// 종목 추가/삭제 시 상태가 변경되므로 StatefulWidget으로 구현
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // 보유 종목 리스트 (모의 데이터로 초기화, 추가/삭제 가능)
+  late List<PortfolioItem> _portfolio;
+
+  @override
+  void initState() {
+    super.initState();
+    // 모의 데이터를 복사하여 동적 리스트로 관리
+    _portfolio = List.from(mockPortfolio);
+  }
+
+  /// "종목 추가" 버튼 탭 시 하단 시트를 표시하고,
+  /// 종목 저장 결과를 받아 포트폴리오에 추가
+  Future<void> _onAddStockTap() async {
+    final result = await showAddStockBottomSheet(context);
+    if (result != null) {
+      setState(() {
+        _portfolio.add(result);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final recommended = recommendedStocks;
+    // 포트폴리오 전체 합산 계산
+    final totalBuy = _portfolio.fold<double>(
+      0,
+      (sum, item) => sum + item.totalBuyAmount,
+    );
+    final totalCurrent = _portfolio.fold<double>(
+      0,
+      (sum, item) => sum + item.totalCurrentAmount,
+    );
+    final totalProfit = totalCurrent - totalBuy;
+    // 매입 금액이 0이면 수익률 0으로 처리 (0 나누기 방지)
+    final totalReturnPercent = totalBuy > 0
+        ? (totalProfit / totalBuy) * 100
+        : 0.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF5F6FA),
       body: CustomScrollView(
         slivers: [
+          // 상단 앱바: 홈 아이콘 + 로고 + 설정 아이콘
           SliverAppBar(
-            expandedHeight: 120,
-            floating: true,
             pinned: true,
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-              title: const Text(
-                '오늘의 추천',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                ),
+            elevation: 0,
+            titleSpacing: 0,
+            leading: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Icon(Icons.home, color: Colors.black87, size: 26),
+            ),
+            actions: [
+              // 설정 아이콘 - 탭 시 설정 화면으로 이동
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.black87, size: 26),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(showBackButton: true),
+                    ),
+                  );
+                },
               ),
+              const SizedBox(width: 8),
+            ],
+          ),
+
+          // 포트폴리오 요약 카드 영역
+          SliverToBoxAdapter(
+            child: _buildPortfolioSummary(
+              totalReturnPercent: totalReturnPercent,
+              totalProfit: totalProfit,
+              totalCurrent: totalCurrent,
+              totalBuy: totalBuy,
+              stockCount: _portfolio.length,
             ),
           ),
-          SliverToBoxAdapter(child: _buildMarketOverview()),
+
+          // 보유 종목 섹션 헤더: "보유 종목" + "종목 추가" 버튼
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 24, 16, 12),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(Icons.trending_up, color: Color(0xFF2E7D32), size: 22),
-                  const SizedBox(width: 8),
                   const Text(
-                    '추천 종목',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    '보유 종목',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
-                  const Spacer(),
-                  Text(
-                    '${recommended.length}종목',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
+                  // 종목 추가 버튼 - 탭 시 하단 시트 표시
+                  GestureDetector(
+                    onTap: _onAddStockTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff2563EB),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, color: Colors.white, size: 16),
+                          SizedBox(width: 4),
+                          Text(
+                            '종목 추가',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+
+          // 보유 종목 카드 리스트
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final stock = recommended[index];
-                return StockCard(
-                  stock: stock,
-                  onTap: () => _navigateToDetail(context, stock),
-                );
-              },
-              childCount: recommended.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return PortfolioCard(
+                item: _portfolio[index],
+                onAiAnalysisTap: () {
+                  // AI 분석 채팅 화면으로 이동
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AiAnalysisScreen(item: _portfolio[index]),
+                    ),
+                  );
+                },
+              );
+            }, childCount: _portfolio.length),
           ),
+
+          // 하단 여백 (네비게이션 바에 가리지 않도록)
           const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
         ],
       ),
     );
   }
 
-  Widget _buildMarketOverview() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              '시장 현황',
+  /// 포트폴리오 요약 카드 위젯
+  /// 진한 남색 배경에 총 수익률과 세부 합산 정보를 표시
+  Widget _buildPortfolioSummary({
+    required double totalReturnPercent,
+    required double totalProfit,
+    required double totalCurrent,
+    required double totalBuy,
+    required int stockCount,
+  }) {
+    final isPositive = totalReturnPercent >= 0;
+
+    return Container(
+      // margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        // 진한 남색 → 파란색 그라디언트 배경
+        color: const Color(0xFF2563EB),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // "총 수익률" 라벨
+            Text(
+              '총 수익률',
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: Colors.white.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 8),
+            // 수익률 숫자 + 화살표 아이콘
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${isPositive ? '+' : ''}${totalReturnPercent.toStringAsFixed(2)}%',
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Icon(
+                    isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // 세부 정보 리스트 (흰색 반투명 박스)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  // 총 평가 손익
+                  _buildSummaryRow(
+                    '총 평가 손익',
+                    '${isPositive ? '+' : ''}${formatPrice(totalProfit, '₩')}',
+                  ),
+                  _buildDivider(),
+                  // 총 평가 금액
+                  _buildSummaryRow('총 평가 금액', formatPrice(totalCurrent, '₩')),
+                  _buildDivider(),
+                  // 총 매입 금액
+                  _buildSummaryRow('총 매입 금액', formatPrice(totalBuy, '₩')),
+                  _buildDivider(),
+                  // 보유 종목 수
+                  _buildSummaryRow('보유 종목 수', '$stockCount종목'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 요약 카드 내 한 줄 정보 행: 라벨(좌측) + 값(우측)
+  Widget _buildSummaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: MarketSummaryCard(
-                  indexName: 'KOSPI',
-                  value: '2,687.45',
-                  change: '+1.23%',
-                  isPositive: true,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MarketSummaryCard(
-                  indexName: 'KOSDAQ',
-                  value: '892.31',
-                  change: '-0.45%',
-                  isPositive: false,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: MarketSummaryCard(
-                  indexName: 'NASDAQ',
-                  value: '16,274.94',
-                  change: '+0.87%',
-                  isPositive: true,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MarketSummaryCard(
-                  indexName: 'S&P 500',
-                  value: '5,123.69',
-                  change: '+0.52%',
-                  isPositive: true,
-                ),
-              ),
-            ],
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _navigateToDetail(BuildContext context, Stock stock) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => StockDetailScreen(stock: stock),
-      ),
-    );
+  /// 요약 카드 내 구분선
+  Widget _buildDivider() {
+    return Divider(color: Colors.white.withValues(alpha: 0.1), height: 1);
   }
 }
