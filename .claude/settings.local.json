@@ -11,7 +11,8 @@
       "Bash(cmd /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat --version\")",
       "Bash(C:Usersuserflutterbinflutter.bat analyze)",
       "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat analyze\")",
-      "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat build web\")"
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat build web\")",
+      "Bash(flutter pub get:*)"
     ]
   }
 }
