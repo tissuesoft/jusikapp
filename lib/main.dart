@@ -5,6 +5,8 @@ import 'screens/market_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/kakao_login_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/add_multiple_stocks_screen.dart';
 
 void main() {
   runApp(const StockRecommenderApp());
@@ -39,9 +41,13 @@ class StockRecommenderApp extends StatelessWidget {
       ),
       // 스플래시 화면을 초기 화면으로 설정
       home: const SplashScreen(),
-      // 네임드 라우트: 스플래시 → 로그인 → 메인 전환용
+      // 네임드 라우트: 스플래시 → 로그인 → 온보딩 → (종목 추가) → 메인 전환용
       routes: {
         '/login': (context) => const KakaoLoginScreen(),
+        '/onboarding': (context) => const OnboardingScreen(
+              userName: '홍길동', // TODO: 실제 로그인한 사용자 이름으로 변경
+            ),
+        '/add-stocks': (context) => const AddMultipleStocksScreen(),
         '/main': (context) => const MainScreen(),
       },
     );

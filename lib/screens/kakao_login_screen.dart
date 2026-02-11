@@ -185,16 +185,16 @@ class KakaoLoginScreen extends StatelessWidget {
 
   /// 카카오톡 로그인 버튼 클릭 시 호출되는 메서드
   /// 실제 카카오 SDK 연동은 추후 구현
-  /// 현재는 바로 메인 화면으로 이동
+  /// 현재는 바로 온보딩 화면으로 이동
   void _onKakaoLoginTap(BuildContext context) {
     // TODO: 실제 카카오톡 로그인 SDK 연동
     // 1. 카카오 SDK 초기화
     // 2. 로그인 요청
     // 3. 사용자 정보 가져오기
     // 4. 서버에 인증 토큰 전송
-    // 5. 로그인 성공 시 메인 화면으로 이동
+    // 5. 로그인 성공 시 온보딩 화면으로 이동
 
-    // 현재는 임시로 바로 메인 화면으로 이동
-    Navigator.of(context).pushReplacementNamed('/main');
+    // 현재는 임시로 바로 온보딩 화면으로 이동
+    Navigator.of(context).pushReplacementNamed('/onboarding');
   }
 }
