@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/stock.dart';
 import '../utils/formatters.dart';
+import '../constants/colors.dart';
 import 'recommendation_badge.dart';
 
 class StockCard extends StatelessWidget {
@@ -46,9 +47,8 @@ class StockCard extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: stock.isPositive
-            ? const Color(0xFFE8F5E9)
-            : const Color(0xFFFFEBEE),
+        // 주가 상승/하락에 따른 배경색
+        color: AppColors.getStockBackgroundColor(stock.isPositive),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
@@ -59,9 +59,8 @@ class StockCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: stock.isPositive
-                ? const Color(0xFF2E7D32)
-                : const Color(0xFFC62828),
+            // 주가 상승/하락에 따른 텍스트 색상
+            color: AppColors.getStockColor(stock.isPositive),
           ),
         ),
       ),
@@ -132,9 +131,8 @@ class StockCard extends StatelessWidget {
         Text(
           formatPercent(stock.changePercent),
           style: TextStyle(
-            color: stock.isPositive
-                ? const Color(0xFF2E7D32)
-                : const Color(0xFFC62828),
+            // 주가 상승/하락에 따른 색상
+            color: AppColors.getStockColor(stock.isPositive),
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),

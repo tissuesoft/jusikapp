@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../models/portfolio.dart';
 import '../utils/formatters.dart';
+import '../constants/colors.dart';
 
 /// 개별 보유 종목 정보를 카드 형태로 표시하는 위젯
 /// 이미지 디자인 기준: 종목명/코드, 수익률, 매수가/현재가, 보유수량/평가금액, AI 분석 보기
@@ -80,9 +81,8 @@ class PortfolioCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: item.isPositive
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFC62828),
+                // 수익/손실에 따른 색상
+                color: AppColors.getStockColor(item.isPositive),
               ),
             ),
             const SizedBox(height: 2),
@@ -91,9 +91,8 @@ class PortfolioCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: item.isPositive
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFC62828),
+                // 수익/손실에 따른 색상
+                color: AppColors.getStockColor(item.isPositive),
               ),
             ),
           ],

@@ -7,7 +7,10 @@ import '../models/portfolio.dart';
 import '../utils/formatters.dart';
 import '../widgets/portfolio_card.dart';
 import '../widgets/add_stock_bottom_sheet.dart';
+import '../services/stock_api_service.dart';
+import '../constants/colors.dart';
 import 'ai_analysis_screen.dart';
+import 'notification_screen.dart';
 import 'settings_screen.dart';
 
 /// 포트폴리오 대시보드 홈 화면 위젯 (StatefulWidget)
@@ -23,12 +26,42 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // 보유 종목 리스트 (모의 데이터로 초기화, 추가/삭제 가능)
   late List<PortfolioItem> _portfolio;
+  final _apiService = StockApiService();
+  bool _isLoading = false;
+  String? _errorMessage;
+  // 읽지 않은 알림 개수 (실제로는 API나 로컬 저장소에서 가져와야 함)
+  final int _unreadNotificationCount = 42;
 
   @override
   void initState() {
     super.initState();
     // 모의 데이터를 복사하여 동적 리스트로 관리
     _portfolio = List.from(mockPortfolio);
+    // 화면 로드 시 API 호출하여 실시간 가격 업데이트
+    _loadPortfolioPrices();
+  }
+
+  /// API를 호출하여 포트폴리오 종목들의 현재가를 업데이트
+  Future<void> _loadPortfolioPrices() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final updatedPortfolio = await _apiService.fetchPortfolioPrices(
+        _portfolio,
+      );
+      setState(() {
+        _portfolio = updatedPortfolio;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'API 호출 실패: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   /// "종목 추가" 버튼 탭 시 하단 시트를 표시하고,
@@ -63,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF5F6FA),
       body: CustomScrollView(
         slivers: [
-          // 상단 앱바: 홈 아이콘 + 로고 + 설정 아이콘
+          // 상단 앱바: 홈 아이콘 + 새로고침 + 설정 아이콘
           SliverAppBar(
             pinned: true,
             backgroundColor: Colors.white,
@@ -75,14 +108,57 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Icon(Icons.home, color: Colors.black87, size: 26),
             ),
             actions: [
-              // 설정 아이콘 - 탭 시 설정 화면으로 이동
+              // 새로고침 버튼 - API 재호출
+
+              // 알림 아이콘 - 탭 시 알림 화면으로 이동
+              // Badge 위젯으로 읽지 않은 알림 개수를 표시
               IconButton(
-                icon: const Icon(Icons.settings, color: Colors.black87, size: 26),
+                icon: Badge(
+                  // 읽지 않은 알림이 있을 때만 배지 표시
+                  label: _unreadNotificationCount > 0
+                      ? Text(
+                          _unreadNotificationCount > 99
+                              ? '99+' // 99개 이상이면 99+로 표시
+                              : _unreadNotificationCount.toString(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                  // 배지 배경색 (빨간색 - 주가 상승 색상 사용)
+                  backgroundColor: AppColors.stockUp,
+                  // 배지를 표시할지 여부
+                  isLabelVisible: _unreadNotificationCount > 0,
+                  child: const Icon(
+                    Icons.notifications,
+                    color: Colors.black87,
+                    size: 26,
+                  ),
+                ),
                 onPressed: () {
+                  print('알림 아이콘 클릭됨'); // 디버그용 로그
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(showBackButton: true),
+                      builder: (context) =>
+                          const NotificationScreen(showBackButton: true),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.settings,
+                  color: Colors.black87,
+                  size: 26,
+                ),
+                onPressed: () {
+                  // 설정 화면으로 이동
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
                     ),
                   );
                 },
@@ -90,6 +166,43 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 8),
             ],
           ),
+
+          // 에러 메시지 표시
+          if (_errorMessage != null)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.errorBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.errorBorder),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          color: AppColors.error,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
+                      onPressed: () => setState(() => _errorMessage = null),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // 포트폴리오 요약 카드 영역
           SliverToBoxAdapter(
@@ -187,8 +300,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       // margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(
-        // 진한 남색 → 파란색 그라디언트 배경
-        color: const Color(0xFF2563EB),
+        // 메인 테마 색상 배경
+        color: AppColors.primary,
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),

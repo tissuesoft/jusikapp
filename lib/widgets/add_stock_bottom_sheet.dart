@@ -393,30 +393,35 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
 
   /// "종목 저장" 버튼 위젯
   Widget _buildSaveButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _saveStock,
-        style: ElevatedButton.styleFrom(
-          // 이미지와 동일한 보라색 계열 버튼
-          backgroundColor: const Color(0xFF2563EB),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check, size: 20),
-            SizedBox(width: 8),
-            Text(
-              '종목 저장',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom,
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: _saveStock,
+          style: ElevatedButton.styleFrom(
+            // 이미지와 동일한 보라색 계열 버튼
+            backgroundColor: const Color(0xFF2563EB),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
+            elevation: 0,
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check, size: 20),
+              SizedBox(width: 8),
+              Text(
+                '종목 저장',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
       ),
     );
