@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../constants/colors.dart';
 
 class StockChart extends StatelessWidget {
   final List<double> priceHistory;
@@ -28,9 +29,8 @@ class StockChart extends StatelessWidget {
     final maxY = priceHistory.reduce(max);
     final padding = (maxY - minY) * 0.1;
 
-    final gradientColors = isPositive
-        ? [const Color(0xFF2E7D32), const Color(0xFF66BB6A)]
-        : [const Color(0xFFC62828), const Color(0xFFEF5350)];
+    // 주가 상승/하락에 따른 그라디언트 색상 설정
+    final gradientColors = AppColors.getStockGradientColors(isPositive);
 
     return SizedBox(
       height: height,

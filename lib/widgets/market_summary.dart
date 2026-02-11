@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/colors.dart';
 
 class MarketSummaryCard extends StatelessWidget {
   final String indexName;
@@ -47,9 +48,8 @@ class MarketSummaryCard extends StatelessWidget {
             children: [
               Icon(
                 isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                color: isPositive
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFC62828),
+                // 주가 상승/하락에 따른 색상
+                color: AppColors.getStockColor(isPositive),
                 size: 20,
               ),
               Text(
@@ -57,9 +57,8 @@ class MarketSummaryCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isPositive
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFFC62828),
+                  // 주가 상승/하락에 따른 색상
+                  color: AppColors.getStockColor(isPositive),
                 ),
               ),
             ],

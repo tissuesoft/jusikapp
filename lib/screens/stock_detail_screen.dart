@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/stock.dart';
 import '../utils/formatters.dart';
+import '../constants/colors.dart';
 import '../widgets/recommendation_badge.dart';
 import '../widgets/stock_chart.dart';
 
@@ -95,9 +96,8 @@ class StockDetailScreen extends StatelessWidget {
             children: [
               Icon(
                 stock.isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                color: stock.isPositive
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFC62828),
+                // 주가 상승/하락에 따른 색상
+                color: AppColors.getStockColor(stock.isPositive),
                 size: 28,
               ),
               Text(
@@ -105,9 +105,8 @@ class StockDetailScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: stock.isPositive
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFFC62828),
+                  // 주가 상승/하락에 따른 색상
+                  color: AppColors.getStockColor(stock.isPositive),
                 ),
               ),
             ],

@@ -51,10 +51,10 @@ class _SplashScreenState extends State<SplashScreen>
     // 애니메이션 시작
     _controller.forward();
 
-    // 2.5초 후 메인 화면으로 전환
+    // 2.5초 후 카카오톡 로그인 화면으로 전환
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/main');
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     });
   }
