@@ -3,6 +3,9 @@
 // 홈 화면 설정 아이콘 탭 또는 하단 네비게이션 '설정' 탭에서 진입한다
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// 설정 화면 위젯
 /// 섹션별 메뉴 항목, 로그아웃 버튼, 앱 버전 정보 푸터로 구성
@@ -39,10 +42,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey.shade200,
-            height: 1,
-          ),
+          child: Container(color: Colors.grey.shade200, height: 1),
         ),
       ),
       body: ListView(
@@ -68,12 +68,11 @@ class SettingsScreen extends StatelessWidget {
             trailing: 'v2.1.4',
             onTap: () {},
           ),
-          _buildItemDivider(),
           _buildSettingsTile(
             icon: Icons.mail,
             iconColor: const Color(0xFF1565C0),
-            title: '개발자 이메일',
-            onTap: () {},
+            title: '개발자 이메일 : softtissue9697@gmail.com',
+            onTap: () => _sendEmail(),
           ),
           _buildSectionDivider(),
 
@@ -83,33 +82,28 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.security,
             iconColor: const Color(0xFFE53935),
             title: '개인정보 처리방침',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PrivacyPolicyScreen(),
+              ),
+            ),
           ),
           _buildItemDivider(),
           _buildSettingsTile(
             icon: Icons.description,
             iconColor: const Color(0xFFE53935),
             title: '이용약관',
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TermsOfServiceScreen(),
+              ),
+            ),
           ),
           _buildSectionDivider(),
 
           // ── 지원 섹션 ──
-          _buildSectionHeader('지원'),
-          _buildSettingsTile(
-            icon: Icons.help,
-            iconColor: const Color(0xFF00897B),
-            title: '도움말',
-            onTap: () {},
-          ),
-          _buildItemDivider(),
-          _buildSettingsTile(
-            icon: Icons.chat_bubble,
-            iconColor: const Color(0xFF00897B),
-            title: '피드백 보내기',
-            onTap: () {},
-          ),
-
           const SizedBox(height: 32),
 
           // ── 로그아웃 버튼 ──
@@ -143,18 +137,12 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 Text(
                   'Stock Analysis AI v2.1.4',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade400,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '© 2024 All rights reserved',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade400,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                 ),
               ],
             ),
@@ -240,19 +228,12 @@ class SettingsScreen extends StatelessWidget {
             if (trailing != null) ...[
               Text(
                 trailing,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
               ),
               const SizedBox(width: 4),
             ],
             // 우측 화살표 아이콘
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey.shade300,
-              size: 22,
-            ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 22),
           ],
         ),
       ),
@@ -270,5 +251,31 @@ class SettingsScreen extends StatelessWidget {
       padding: const EdgeInsets.only(left: 74),
       child: Divider(height: 1, color: Colors.grey.shade100),
     );
+  }
+
+  /// 개발자 이메일 작성
+  /// url_launcher 패키지를 사용하여 기본 이메일 앱을 실행
+  Future<void> _sendEmail() async {
+    // mailto: URI 스킴 생성
+    // scheme: 'mailto' - 이메일 프로토콜
+    // path: 수신자 이메일 주소
+    // queryParameters: 제목(subject), 본문(body) 등 추가 정보
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'softtissue9697@gmail.com',
+      queryParameters: {
+        'subject': '[Stock Analysis AI] 문의사항', // 이메일 제목
+        'body': '문의 내용을 입력해주세요.', // 이메일 본문
+      },
+    );
+
+    // URL을 열 수 있는지 확인 후 실행
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else {
+      // 이메일 앱을 열 수 없는 경우
+      // (이메일 클라이언트가 설치되지 않은 경우 등)
+      debugPrint('이메일 앱을 열 수 없습니다: $emailUri');
+    }
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/portfolio.dart';
 import '../models/chat_message.dart';
 import '../data/mock_ai_responses.dart';
+import '../constants/colors.dart';
 
 /// AI 분석 채팅 화면 (StatefulWidget)
 /// 종목 정보를 전달받아 채팅 인터페이스로 AI 분석 결과를 표시한다
@@ -67,15 +68,18 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
     if (text.trim().isEmpty) return;
 
     final now = TimeOfDay.now();
-    final timestamp = '${now.hour > 12 ? "오후" : "오전"} ${now.hour > 12 ? now.hour - 12 : now.hour}:${now.minute.toString().padLeft(2, '0')}';
+    final timestamp =
+        '${now.hour > 12 ? "오후" : "오전"} ${now.hour > 12 ? now.hour - 12 : now.hour}:${now.minute.toString().padLeft(2, '0')}';
 
     // 사용자 메시지 추가
     setState(() {
-      _messages.add(ChatMessage(
-        sender: MessageSender.user,
-        text: text,
-        timestamp: timestamp,
-      ));
+      _messages.add(
+        ChatMessage(
+          sender: MessageSender.user,
+          text: text,
+          timestamp: timestamp,
+        ),
+      );
       _isAiTyping = true;
     });
     _textController.clear();
@@ -89,19 +93,22 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
       final response = responses[_responseIndex % responses.length];
 
       final responseTime = TimeOfDay.now();
-      final responseTimestamp = '${responseTime.hour > 12 ? "오후" : "오전"} ${responseTime.hour > 12 ? responseTime.hour - 12 : responseTime.hour}:${responseTime.minute.toString().padLeft(2, '0')}';
+      final responseTimestamp =
+          '${responseTime.hour > 12 ? "오후" : "오전"} ${responseTime.hour > 12 ? responseTime.hour - 12 : responseTime.hour}:${responseTime.minute.toString().padLeft(2, '0')}';
 
       setState(() {
         _isAiTyping = false;
-        _messages.add(ChatMessage(
-          sender: response.sender,
-          text: response.text,
-          timestamp: responseTimestamp,
-          contentType: response.contentType,
-          infoCard: response.infoCard,
-          sentiment: response.sentiment,
-          additionalText: response.additionalText,
-        ));
+        _messages.add(
+          ChatMessage(
+            sender: response.sender,
+            text: response.text,
+            timestamp: responseTimestamp,
+            contentType: response.contentType,
+            infoCard: response.infoCard,
+            sentiment: response.sentiment,
+            additionalText: response.additionalText,
+          ),
+        );
         _responseIndex++;
       });
       _scrollToBottom();
@@ -124,7 +131,8 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     // 수익률 표시용 텍스트
-    final returnText = '${widget.item.isPositive ? '+' : ''}${widget.item.returnPercent.toStringAsFixed(1)}%';
+    final returnText =
+        '${widget.item.isPositive ? '+' : ''}${widget.item.returnPercent.toStringAsFixed(1)}%';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
@@ -155,25 +163,25 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: widget.item.isPositive
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFC62828),
+                // AppColors.getStockColor() 헬퍼 메서드 사용
+                // isPositive가 true면 stockUp(빨간색), false면 stockDown(파란색)
+                color: AppColors.getStockColor(widget.item.isPositive),
               ),
             ),
           ],
         ),
-        actions: [
-          // 차트 아이콘 버튼
-          IconButton(
-            icon: const Icon(Icons.show_chart, color: Colors.black54),
-            onPressed: () {},
-          ),
-          // 더보기 버튼
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black54),
-            onPressed: () {},
-          ),
-        ],
+        // actions: [
+        //   // 차트 아이콘 버튼
+        //   IconButton(
+        //     icon: const Icon(Icons.show_chart, color: Colors.black54),
+        //     onPressed: () {},
+        //   ),
+        //   // 더보기 버튼
+        //   IconButton(
+        //     icon: const Icon(Icons.more_vert, color: Colors.black54),
+        //     onPressed: () {},
+        //   ),
+        // ],
       ),
       body: Column(
         children: [
@@ -206,8 +214,9 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // AI 메시지 좌측 아바타 아이콘
@@ -215,29 +224,28 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
             Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1565C0),
+              decoration: BoxDecoration(
+                // AI 아바타 배경색 - AppColors.primary 사용
+                color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.smart_toy,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: const Icon(Icons.smart_toy, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 8),
           ],
           // 메시지 내용 영역
           Flexible(
             child: Column(
-              crossAxisAlignment:
-                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 // 메시지 버블 컨테이너
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isUser ? const Color(0xFF1565C0) : Colors.white,
+                    // 사용자 메시지는 primary 색상, AI 메시지는 흰색 배경
+                    color: isUser ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),
@@ -296,10 +304,7 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
                   const SizedBox(height: 4),
                   Text(
                     message.timestamp,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade400,
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                   ),
                 ],
               ],
@@ -336,34 +341,35 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
                   color: Colors.black87,
                 ),
               ),
-              Icon(
-                Icons.help_outline,
-                size: 18,
-                color: Colors.grey.shade400,
-              ),
+              Icon(Icons.help_outline, size: 18, color: Colors.grey.shade400),
             ],
           ),
           const SizedBox(height: 10),
           // 세부 항목 리스트 (불릿 포인트)
-          ...data.items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ', style: TextStyle(fontSize: 14, color: Colors.black54)),
-                    Expanded(
-                      child: Text(
-                        item,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.black54,
-                          height: 1.3,
-                        ),
+          ...data.items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '• ',
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        height: 1.3,
                       ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -373,11 +379,14 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   Widget _buildSentimentBars(SentimentData data) {
     return Column(
       children: [
-        _buildSentimentRow('긍정 요인', data.positive, const Color(0xFF2E7D32)),
+        // 긍정 요인: stockUp(빨간색) 사용
+        _buildSentimentRow('긍정 요인', data.positive, AppColors.stockUp),
         const SizedBox(height: 8),
+        // 중립 요인: 주황색 (중립을 나타내는 색상)
         _buildSentimentRow('중립 요인', data.neutral, const Color(0xFFF57C00)),
         const SizedBox(height: 8),
-        _buildSentimentRow('부정 요인', data.negative, const Color(0xFFC62828)),
+        // 부정 요인: stockDown(파란색) 사용
+        _buildSentimentRow('부정 요인', data.negative, AppColors.stockDown),
       ],
     );
   }
@@ -459,15 +468,12 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFF1565C0),
+            decoration: BoxDecoration(
+              // AI 아바타 배경색 - AppColors.primary 사용
+              color: AppColors.primary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.smart_toy,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: const Icon(Icons.smart_toy, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 8),
           // 타이핑 점 애니메이션
@@ -525,11 +531,7 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
               color: Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.add,
-              color: Colors.grey.shade600,
-              size: 22,
-            ),
+            child: Icon(Icons.add, color: Colors.grey.shade600, size: 22),
           ),
           const SizedBox(width: 8),
           // 텍스트 입력 필드
@@ -563,15 +565,12 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
             child: Container(
               width: 42,
               height: 42,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1565C0),
+              decoration: BoxDecoration(
+                // 전송 버튼 배경색 - AppColors.primary 사용
+                color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.send,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: const Icon(Icons.send, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -620,7 +619,8 @@ class _TypingDotsState extends State<_TypingDots>
             final delay = index * 0.2;
             final value = (_controller.value + delay) % 1.0;
             // 사인 함수로 부드러운 위아래 움직임
-            final opacity = (0.3 + 0.7 * (value < 0.5 ? value * 2 : (1 - value) * 2));
+            final opacity =
+                (0.3 + 0.7 * (value < 0.5 ? value * 2 : (1 - value) * 2));
 
             return Container(
               margin: EdgeInsets.only(right: index < 2 ? 4 : 0),
