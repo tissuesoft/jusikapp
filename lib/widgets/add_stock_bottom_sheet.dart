@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/portfolio.dart';
 import '../data/mock_data.dart';
 import '../utils/formatters.dart';
+import '../services/stock_api_service.dart';
 
 /// 종목 추가 하단 시트를 표시하는 함수
 /// context를 받아 showModalBottomSheet를 호출한다
@@ -37,6 +38,26 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   String? _selectedStockTicker; // 선택된 종목 코드
   double? _selectedCurrentPrice; // 선택된 종목의 현재가
   bool _showSearchResults = false; // 검색 결과 표시 여부
+  bool _isSaving = false; // 저장 중 상태
+  final _apiService = StockApiService(); // API 서비스 인스턴스
+
+  /// 안내 메시지(SnackBar)를 안전하게 표시
+  void _showMessage(String message, {Color? backgroundColor}) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      debugPrint('ScaffoldMessenger를 찾지 못했습니다: $message');
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: backgroundColor,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -94,25 +115,81 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   }
 
   /// "종목 저장" 버튼 탭 시 호출
-  /// 유효성 검사 후 PortfolioItem을 생성하여 반환
-  void _saveStock() {
-    if (_selectedStockName == null || _buyPrice <= 0 || _quantity <= 0) {
-      // 필수 입력값이 없으면 스낵바로 안내
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('모든 항목을 올바르게 입력해주세요.')));
+  /// 유효성 검사 후 서버에 저장하고 PortfolioItem을 생성하여 반환
+  Future<void> _saveStock() async {
+    print('=== 종목 저장 버튼 클릭 ===');
+    
+    if (_isSaving) {
+      print('이미 저장 중입니다. 중복 요청 무시');
       return;
     }
 
+    // 키보드를 닫아 버튼/스낵바가 가려지지 않게 한다
+    FocusScope.of(context).unfocus();
+
+    // 종목명: 검색 필드에 입력된 실제 값 사용 (검색 결과 선택 여부와 무관)
+    final stockName = _searchController.text.trim();
+
+    print('입력값 검증 중...');
+    print('  - 종목명: $stockName');
+    print('  - 매수가: $_buyPrice');
+    print('  - 수량: $_quantity');
+
+    if (stockName.isEmpty || _buyPrice <= 0 || _quantity <= 0) {
+      print('❌ 유효성 검사 실패: 필수 입력값이 없습니다');
+      _showMessage('종목명을 입력하고, 매수가/수량을 올바르게 입력해주세요.');
+      return;
+    }
+
+    print('✅ 유효성 검사 통과');
+    setState(() => _isSaving = true);
+
+    // ticker는 UI/리스트용(선택 시 사용), 서버 body에는 미포함
     final item = PortfolioItem(
-      name: _selectedStockName!,
-      ticker: _selectedStockTicker!,
+      name: stockName,
+      ticker: _selectedStockTicker ?? '',
       buyPrice: _buyPrice,
       currentPrice: _selectedCurrentPrice ?? _buyPrice,
       quantity: _quantity,
     );
 
-    Navigator.pop(context, item);
+    print('📦 저장할 종목 데이터:');
+    print('  - stock_name: ${item.name}');
+    print('  - avg_price: ${item.buyPrice}');
+    print('  - quantity: ${item.quantity}');
+
+    try {
+      print('🚀 서버에 종목 저장 요청 시작...');
+      // 서버에 POST /portfolio로 종목 저장
+      // Body: {"stock_name": "...", "avg_price": ..., "quantity": ...}
+      // Header: Authorization: Bearer <JWT 토큰>
+      final success = await _apiService.addPortfolioItem(item);
+
+      if (!mounted) {
+        print('⚠️ 위젯이 마운트 해제됨. 저장 결과 무시');
+        return;
+      }
+
+      if (success) {
+        print('✅ 종목 저장 성공: ${item.name}');
+        debugPrint('종목 저장 성공: ${item.name}');
+        // 저장 성공 시 하단 시트 닫고 PortfolioItem 반환
+        Navigator.pop(context, item);
+      } else {
+        print('❌ 종목 저장 실패: 서버 응답이 실패 상태코드를 반환했습니다');
+        // 저장 실패 시 에러 메시지 표시
+        _showMessage('종목 저장에 실패했습니다. 다시 시도해주세요.', backgroundColor: Colors.red.shade400);
+        setState(() => _isSaving = false);
+      }
+    } catch (e, stackTrace) {
+      print('❌ 종목 저장 중 예외 발생: $e');
+      print('스택 트레이스: $stackTrace');
+      debugPrint('종목 저장 중 오류 발생: $e');
+      if (!mounted) return;
+
+      _showMessage('종목 저장 중 오류가 발생했습니다: $e', backgroundColor: Colors.red.shade400);
+      setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -401,27 +478,37 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
         width: double.infinity,
         height: 56,
         child: ElevatedButton(
-          onPressed: _saveStock,
+          onPressed: _isSaving ? null : _saveStock,
           style: ElevatedButton.styleFrom(
             // 이미지와 동일한 보라색 계열 버튼
             backgroundColor: const Color(0xFF2563EB),
             foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey.shade300,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             elevation: 0,
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check, size: 20),
-              SizedBox(width: 8),
-              Text(
-                '종목 저장',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      '종목 저장',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

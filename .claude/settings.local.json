@@ -12,7 +12,10 @@
       "Bash(C:Usersuserflutterbinflutter.bat analyze)",
       "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat analyze\")",
       "Bash(cmd.exe /c \"C:\\\\Users\\\\user\\\\flutter\\\\bin\\\\flutter.bat build web\")",
-      "Bash(flutter pub get:*)"
+      "Bash(flutter pub get:*)",
+      "Bash(flutter doctor:*)",
+      "Bash(where.exe:*)",
+      "Bash(/c/Users/user/flutter/bin/flutter doctor:*)"
     ]
   }
 }

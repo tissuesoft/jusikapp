@@ -3,6 +3,7 @@
 // 일정 시간 후 메인 화면으로 자동 전환한다
 
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 /// 스플래시 화면 위젯 (StatefulWidget)
 /// 로고 페이드인 + 스케일 애니메이션 후 메인 화면으로 이동
@@ -51,12 +52,26 @@ class _SplashScreenState extends State<SplashScreen>
     // 애니메이션 시작
     _controller.forward();
 
-    // 2.5초 후 카카오톡 로그인 화면으로 전환
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
-      }
-    });
+    // 앱 초기화 및 토큰 확인
+    _initializeApp();
+  }
+
+  /// 앱 초기화 및 토큰 확인 후 적절한 화면으로 이동
+  Future<void> _initializeApp() async {
+    // AuthService 초기화 (로컬 저장소에서 토큰 불러오기)
+    await AuthService.instance.initialize();
+
+    // 최소 2.5초 대기 (스플래시 화면 표시 시간)
+    await Future.delayed(const Duration(milliseconds: 2500));
+
+    if (!mounted) return;
+
+    // 토큰이 있으면 메인 화면으로, 없으면 로그인 화면으로 이동
+    if (AuthService.instance.hasToken) {
+      Navigator.of(context).pushReplacementNamed('/main');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
