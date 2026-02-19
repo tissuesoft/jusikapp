@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/auth_service.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
 
@@ -19,18 +20,16 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // 상단 앱바: 뒤로가기(선택) + 중앙 "설정" 타이틀
+      // 상단 앱바: 뒤로가기 버튼 + 중앙 "설정" 타이틀
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        leading: showBackButton
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
         automaticallyImplyLeading: false,
         title: const Text(
           '설정',
@@ -110,7 +109,14 @@ class SettingsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: OutlinedButton(
-              onPressed: () {},
+              onPressed: () async {
+                await AuthService.instance.clearToken();
+                if (!context.mounted) return;
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
+              },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFFE53935)),
                 shape: RoundedRectangleBorder(
