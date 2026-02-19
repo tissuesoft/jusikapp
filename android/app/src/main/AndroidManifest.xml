@@ -30,6 +30,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- 카카오 로그인 리다이렉트 Activity -->
+        <!-- 카카오톡 앱에서 로그인 후 우리 앱으로 돌아올 때 사용되는 설정 -->
+        <activity
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- data: 카카오 로그인 완료 후 리다이렉트 URI (네이티브 앱 키 사용) -->
+                <data android:scheme="kakao3a57d30e596cc6d2aa3b9e6b80a0a23f" android:host="oauth" />
+            </intent-filter>
+        </activity>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

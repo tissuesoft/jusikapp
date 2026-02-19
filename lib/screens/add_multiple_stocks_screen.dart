@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../models/portfolio.dart';
 import '../widgets/add_stock_bottom_sheet.dart';
+import '../services/stock_api_service.dart';
 
 /// 여러 종목 추가 화면 위젯 (StatefulWidget)
 /// 종목 리스트 + 추가 버튼 + 완료 버튼으로 구성
@@ -19,6 +20,10 @@ class AddMultipleStocksScreen extends StatefulWidget {
 class _AddMultipleStocksScreenState extends State<AddMultipleStocksScreen> {
   // 추가된 종목 리스트
   final List<PortfolioItem> _addedStocks = [];
+  // API 서비스 인스턴스
+  final _apiService = StockApiService();
+  // 저장 중 상태
+  bool _isSaving = false;
 
   @override
   Widget build(BuildContext context) {
@@ -45,15 +50,24 @@ class _AddMultipleStocksScreenState extends State<AddMultipleStocksScreen> {
         actions: [
           if (_addedStocks.isNotEmpty)
             TextButton(
-              onPressed: _onCompleteTap,
-              child: Text(
-                '완료 (${_addedStocks.length})',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              onPressed: _isSaving ? null : _onCompleteTap,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : Text(
+                      '완료 (${_addedStocks.length})',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
           const SizedBox(width: 8),
         ],
@@ -250,14 +264,67 @@ class _AddMultipleStocksScreenState extends State<AddMultipleStocksScreen> {
   }
 
   /// 완료 버튼 클릭 시
-  /// 추가된 종목 리스트를 반환하고 메인 화면으로 이동
-  void _onCompleteTap() {
-    // TODO: 추가된 종목들을 서버에 저장하거나 로컬 저장소에 저장
-    // 현재는 메인 화면으로만 이동
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      '/main',
-      (route) => false,
-      arguments: _addedStocks,
-    );
+  /// 추가된 종목들을 서버에 저장하고 메인 화면으로 이동
+  Future<void> _onCompleteTap() async {
+    if (_addedStocks.isEmpty || _isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // 각 종목을 서버에 POST /portfolio로 전송
+      // Body: {"stock_name": "...", "stock_code": "...", "avg_price": ..., "quantity": ...}
+      // Header: Authorization: Bearer <JWT 토큰>
+      bool allSuccess = true;
+      for (final stock in _addedStocks) {
+        final success = await _apiService.addPortfolioItem(stock);
+        if (!success) {
+          allSuccess = false;
+          debugPrint('종목 저장 실패: ${stock.name}');
+        } else {
+          debugPrint('종목 저장 성공: ${stock.name}');
+        }
+      }
+
+      if (!mounted) return;
+
+      if (allSuccess) {
+        // 모든 종목 저장 성공 시 메인 화면으로 이동 (새로고침 요청 포함)
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/main',
+          (route) => false,
+          arguments: 'refresh', // 새로고침 요청 인자 전달
+        );
+      } else {
+        // 일부 실패 시 에러 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('일부 종목 저장에 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+        setState(() => _isSaving = false);
+      }
+    } catch (e) {
+      debugPrint('종목 저장 중 오류 발생: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('종목 저장 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red.shade400,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+      setState(() => _isSaving = false);
+    }
   }
 }

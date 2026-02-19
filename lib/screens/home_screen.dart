@@ -2,7 +2,6 @@
 // 사용자의 보유 종목 현황, 총 수익률, 총 평가 손익 등을 표시하는 메인 화면
 
 import 'package:flutter/material.dart';
-import '../data/mock_portfolio.dart';
 import '../models/portfolio.dart';
 import '../utils/formatters.dart';
 import '../widgets/portfolio_card.dart';
@@ -23,74 +22,130 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+// State 클래스를 외부에서 접근 가능하도록 클래스명을 명시적으로 선언
 class _HomeScreenState extends State<HomeScreen> {
-  // 보유 종목 리스트 (모의 데이터로 초기화, 추가/삭제 가능)
-  late List<PortfolioItem> _portfolio;
+
+  // 보유 종목 리스트 (서버에서 가져온 실제 데이터)
+  List<PortfolioItem> _portfolio = [];
+  // 서버에서 받은 포트폴리오 요약 정보 (총 수익률, 총 손익 등)
+  PortfolioSummary? _summary;
   final _apiService = StockApiService();
   bool _isLoading = false;
   String? _errorMessage;
   // 읽지 않은 알림 개수 (실제로는 API나 로컬 저장소에서 가져와야 함)
   final int _unreadNotificationCount = 42;
+  // 중복 호출 방지 플래그
+  bool _isLoadingPortfolio = false;
+
+  /// 외부에서 호출 가능한 새로고침 메서드
+  /// 종목 추가 후 메인 화면으로 돌아올 때 호출됨
+  void refreshPortfolio() {
+    print('🔄 외부에서 포트폴리오 새로고침 요청');
+    _loadPortfolioHome();
+  }
 
   @override
   void initState() {
     super.initState();
-    // 모의 데이터를 복사하여 동적 리스트로 관리
-    _portfolio = List.from(mockPortfolio);
-    // 화면 로드 시 API 호출하여 실시간 가격 업데이트
-    _loadPortfolioPrices();
+    // 화면 로드 시 서버에서 포트폴리오 데이터를 가져온다
+    _loadPortfolioHome();
   }
 
-  /// API를 호출하여 포트폴리오 종목들의 현재가를 업데이트
-  Future<void> _loadPortfolioPrices() async {
+  /// 서버에서 포트폴리오 홈 데이터를 GET 요청으로 가져온다
+  /// GET /portfolio/home 엔드포인트를 호출하여 보유 종목 리스트를 받아온다
+  /// Header: Authorization: Bearer <JWT 토큰>
+  /// 중복 호출 방지: 이미 로딩 중이면 무시
+  Future<void> _loadPortfolioHome() async {
+    // 중복 호출 방지: 이미 로딩 중이면 무시
+    if (_isLoadingPortfolio) {
+      print('⚠️ 포트폴리오 데이터 로드 중복 호출 방지');
+      return;
+    }
+
+    print('🔄 포트폴리오 데이터 로드 시작');
     setState(() {
       _isLoading = true;
+      _isLoadingPortfolio = true;
       _errorMessage = null;
     });
 
     try {
-      final updatedPortfolio = await _apiService.fetchPortfolioPrices(
-        _portfolio,
-      );
+      // StockApiService의 fetchPortfolioHome()으로 서버 데이터 조회
+      // 응답 구조: { summary: { ... }, stocks: [ ... ] }
+      final result = await _apiService.fetchPortfolioHome();
+      
+      if (!mounted) return;
+      
       setState(() {
-        _portfolio = updatedPortfolio;
+        if (result != null) {
+          _summary = result.summary;     // 서버에서 계산된 요약 정보
+          // 등록 순서(order) 기준으로 정렬하여 보유 종목 리스트 설정
+          final list = List<PortfolioItem>.from(result.stocks);
+          list.sort((a, b) => a.order.compareTo(b.order));
+          _portfolio = list;
+          print('✅ 포트폴리오 데이터 로드 성공: ${result.stocks.length}개 종목 (등록 순서 정렬)');
+        } else {
+          _summary = null;
+          _portfolio = [];
+          _errorMessage = '포트폴리오 데이터를 불러올 수 없습니다.';
+          print('⚠️ 포트폴리오 데이터가 null입니다');
+        }
         _isLoading = false;
+        _isLoadingPortfolio = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ 포트폴리오 데이터 로드 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      if (!mounted) return;
+      
       setState(() {
-        _errorMessage = 'API 호출 실패: $e';
+        _errorMessage = '포트폴리오 데이터를 불러오지 못했습니다: $e';
         _isLoading = false;
+        _isLoadingPortfolio = false;
       });
     }
   }
 
   /// "종목 추가" 버튼 탭 시 하단 시트를 표시하고,
-  /// 종목 저장 결과를 받아 포트폴리오에 추가
+  /// 종목 저장 결과를 받아 포트폴리오 데이터를 새로고침
+  /// 
+  /// 주의: add_stock_bottom_sheet.dart에서 이미 서버에 저장하므로
+  /// 여기서는 중복 저장하지 않고 데이터만 새로고침합니다.
   Future<void> _onAddStockTap() async {
+    // 1. 하단 시트에서 사용자가 입력한 종목 정보를 받아온다
+    // add_stock_bottom_sheet.dart에서 이미 서버에 저장한 후 반환됨
     final result = await showAddStockBottomSheet(context);
     if (result != null) {
-      setState(() {
-        _portfolio.add(result);
-      });
+      // 2. 저장 성공 시 서버에서 최신 포트폴리오 데이터를 다시 가져온다
+      // (add_stock_bottom_sheet에서 이미 저장했으므로 중복 저장하지 않음)
+      print('🔄 종목 추가 완료, 포트폴리오 데이터 새로고침');
+      await _loadPortfolioHome();
+      
+      // 3. 성공 메시지 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${result.name} 종목이 추가되었습니다.'),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 포트폴리오 전체 합산 계산
-    final totalBuy = _portfolio.fold<double>(
-      0,
-      (sum, item) => sum + item.totalBuyAmount,
-    );
-    final totalCurrent = _portfolio.fold<double>(
-      0,
-      (sum, item) => sum + item.totalCurrentAmount,
-    );
-    final totalProfit = totalCurrent - totalBuy;
-    // 매입 금액이 0이면 수익률 0으로 처리 (0 나누기 방지)
-    final totalReturnPercent = totalBuy > 0
-        ? (totalProfit / totalBuy) * 100
-        : 0.0;
+    // 서버에서 받은 요약 정보를 사용 (없으면 기본값 0)
+    final totalBuy = _summary?.totalInvestAmount ?? 0.0;
+    final totalCurrent = _summary?.totalCurrentValue ?? 0.0;
+    final totalProfit = _summary?.totalProfit ?? 0.0;
+    final totalReturnPercent = _summary?.totalProfitRate ?? 0.0;
+    final stockCount = _summary?.stockCount ?? _portfolio.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
@@ -109,7 +164,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             actions: [
               // 새로고침 버튼 - API 재호출
-
+              IconButton(
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Colors.black87,
+                  size: 26,
+                ),
+                onPressed: () {
+                  print('새로고침 버튼 클릭');
+                  _loadPortfolioHome();
+                },
+              ),
               // 알림 아이콘 - 탭 시 알림 화면으로 이동
               // Badge 위젯으로 읽지 않은 알림 개수를 표시
               IconButton(
@@ -211,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
               totalProfit: totalProfit,
               totalCurrent: totalCurrent,
               totalBuy: totalBuy,
-              stockCount: _portfolio.length,
+              stockCount: stockCount,
             ),
           ),
 
@@ -260,24 +325,63 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // 로딩 중 표시
+          if (_isLoading)
+            const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
           // 보유 종목 카드 리스트
-          SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              return PortfolioCard(
-                item: _portfolio[index],
-                onAiAnalysisTap: () {
-                  // AI 분석 채팅 화면으로 이동
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AiAnalysisScreen(item: _portfolio[index]),
+          else if (_portfolio.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.inbox_outlined,
+                      size: 64,
+                      color: Colors.grey.shade300,
                     ),
-                  );
-                },
-              );
-            }, childCount: _portfolio.length),
-          ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '보유 종목이 없습니다',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '종목 추가 버튼을 눌러 종목을 추가하세요',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return PortfolioCard(
+                  item: _portfolio[index],
+                  onAiAnalysisTap: () {
+                    // AI 분석 채팅 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AiAnalysisScreen(item: _portfolio[index]),
+                      ),
+                    );
+                  },
+                );
+              }, childCount: _portfolio.length),
+            ),
 
           // 하단 여백 (네비게이션 바에 가리지 않도록)
           const SliverPadding(padding: EdgeInsets.only(bottom: 100)),

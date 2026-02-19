@@ -45,5 +45,30 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- 카카오 로그인: URL 스킴 설정 -->
+	<!-- 카카오톡 앱에서 로그인 후 우리 앱으로 돌아올 때 사용하는 URL 스킴 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- kakao + 네이티브 앱 키 조합 -->
+				<string>kakao3a57d30e596cc6d2aa3b9e6b80a0a23f</string>
+			</array>
+		</dict>
+	</array>
+	<!-- 카카오 로그인: 카카오톡 앱 실행 허용 설정 -->
+	<!-- iOS에서 다른 앱을 열 수 있도록 허용하는 화이트리스트 -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- 카카오톡 인증 -->
+		<string>kakaokompassauth</string>
+		<!-- 카카오링크 -->
+		<string>kakaolink</string>
+		<!-- 카카오톡 앱 -->
+		<string>kakaotalk</string>
+	</array>
 </dict>
 </plist>
