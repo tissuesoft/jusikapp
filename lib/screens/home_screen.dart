@@ -206,7 +206,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.menu, color: Colors.black87, size: 26),
+                  icon: const Icon(
+                    Icons.settings,
+                    color: Colors.black87,
+                    size: 26,
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
