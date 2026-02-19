@@ -1,5 +1,5 @@
 // 스플래시(로딩) 화면 파일
-// 앱 시작 시 #2563EB 배경에 N 로고 아이콘과 로딩 애니메이션을 표시한 뒤
+// 앱 시작 시 #2563EB 배경에 앱 메인 아이콘과 로딩 애니메이션을 표시한 뒤
 // 일정 시간 후 메인 화면으로 자동 전환한다
 
 import 'package:flutter/material.dart';
@@ -80,6 +80,36 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  /// 앱 메인 아이콘: 둥근 모서리 흰색 박스 + N 로고 (로딩 화면용)
+  Widget _buildAppIcon() {
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'N',
+          style: TextStyle(
+            fontSize: 52,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF2563EB),
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,37 +130,12 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // N 로고 아이콘 (둥근 모서리 흰색 컨테이너)
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    'N',
-                    style: TextStyle(
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF2563EB),
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ),
+              // 앱 메인 아이콘 (assets/images/app_icon.png 없으면 N 로고 폴백)
+              _buildAppIcon(),
               const SizedBox(height: 32),
-              // 앱 이름 텍스트
+              // 앱 이름 텍스트 (설치 시 이름과 동일: N주식)
               const Text(
-                'Stock Analysis AI',
+                'N주식',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,

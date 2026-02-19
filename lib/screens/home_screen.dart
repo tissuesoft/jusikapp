@@ -24,7 +24,6 @@ class HomeScreen extends StatefulWidget {
 
 // State 클래스를 외부에서 접근 가능하도록 클래스명을 명시적으로 선언
 class _HomeScreenState extends State<HomeScreen> {
-
   // 보유 종목 리스트 (서버에서 가져온 실제 데이터)
   List<PortfolioItem> _portfolio = [];
   // 서버에서 받은 포트폴리오 요약 정보 (총 수익률, 총 손익 등)
@@ -54,10 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 서버에서 포트폴리오 홈 데이터를 GET 요청으로 가져온다
   /// GET /portfolio/home 엔드포인트를 호출하여 보유 종목 리스트를 받아온다
   /// Header: Authorization: Bearer <JWT 토큰>
-  /// 중복 호출 방지: 이미 로딩 중이면 무시
-  Future<void> _loadPortfolioHome() async {
-    // 중복 호출 방지: 이미 로딩 중이면 무시
-    if (_isLoadingPortfolio) {
+  /// [forceRefresh] true면 당겨서 새로고침 등에서 중복 호출 방지를 건너뛴다
+  Future<void> _loadPortfolioHome({bool forceRefresh = false}) async {
+    // 중복 호출 방지 (당겨서 새로고침 시에는 무시)
+    if (!forceRefresh && _isLoadingPortfolio) {
       print('⚠️ 포트폴리오 데이터 로드 중복 호출 방지');
       return;
     }
@@ -73,12 +72,12 @@ class _HomeScreenState extends State<HomeScreen> {
       // StockApiService의 fetchPortfolioHome()으로 서버 데이터 조회
       // 응답 구조: { summary: { ... }, stocks: [ ... ] }
       final result = await _apiService.fetchPortfolioHome();
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         if (result != null) {
-          _summary = result.summary;     // 서버에서 계산된 요약 정보
+          _summary = result.summary; // 서버에서 계산된 요약 정보
           // 등록 순서(order) 기준으로 정렬하여 보유 종목 리스트 설정
           final list = List<PortfolioItem>.from(result.stocks);
           list.sort((a, b) => a.order.compareTo(b.order));
@@ -97,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
       print('❌ 포트폴리오 데이터 로드 실패: $e');
       print('스택 트레이스: $stackTrace');
       if (!mounted) return;
-      
+
       setState(() {
         _errorMessage = '포트폴리오 데이터를 불러오지 못했습니다: $e';
         _isLoading = false;
@@ -108,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// "종목 추가" 버튼 탭 시 하단 시트를 표시하고,
   /// 종목 저장 결과를 받아 포트폴리오 데이터를 새로고침
-  /// 
+  ///
   /// 주의: add_stock_bottom_sheet.dart에서 이미 서버에 저장하므로
   /// 여기서는 중복 저장하지 않고 데이터만 새로고침합니다.
   Future<void> _onAddStockTap() async {
@@ -120,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // (add_stock_bottom_sheet에서 이미 저장했으므로 중복 저장하지 않음)
       print('🔄 종목 추가 완료, 포트폴리오 데이터 새로고침');
       await _loadPortfolioHome();
-      
+
       // 3. 성공 메시지 표시
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -149,41 +148,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
-      body: CustomScrollView(
-        slivers: [
-          // 상단 앱바: 홈 아이콘 + 새로고침 + 설정 아이콘
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            elevation: 0,
-            titleSpacing: 0,
-            leading: const Padding(
-              padding: EdgeInsets.all(16),
-              child: Icon(Icons.home, color: Colors.black87, size: 26),
-            ),
-            actions: [
-              // 새로고침 버튼 - API 재호출
-              IconButton(
-                icon: const Icon(
-                  Icons.refresh,
-                  color: Colors.black87,
-                  size: 26,
-                ),
-                onPressed: () {
-                  print('새로고침 버튼 클릭');
-                  _loadPortfolioHome();
-                },
-              ),
-              // 알림 아이콘 - 탭 시 알림 화면으로 이동
-              // Badge 위젯으로 읽지 않은 알림 개수를 표시
-              IconButton(
+      body: RefreshIndicator(
+        onRefresh: () => _loadPortfolioHome(forceRefresh: true),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // 상단 앱바: 알림(leading) + 설정 아이콘(actions)
+            SliverAppBar(
+              pinned: true,
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 0,
+              titleSpacing: 0,
+              leading: IconButton(
                 icon: Badge(
-                  // 읽지 않은 알림이 있을 때만 배지 표시
                   label: _unreadNotificationCount > 0
                       ? Text(
                           _unreadNotificationCount > 99
-                              ? '99+' // 99개 이상이면 99+로 표시
+                              ? '99+'
                               : _unreadNotificationCount.toString(),
                           style: const TextStyle(
                             fontSize: 10,
@@ -191,9 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         )
                       : null,
-                  // 배지 배경색 (빨간색 - 주가 상승 색상 사용)
                   backgroundColor: AppColors.stockUp,
-                  // 배지를 표시할지 여부
                   isLabelVisible: _unreadNotificationCount > 0,
                   child: const Icon(
                     Icons.notifications,
@@ -202,190 +182,234 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 onPressed: () {
-                  print('알림 아이콘 클릭됨'); // 디버그용 로그
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) =>
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
                           const NotificationScreen(showBackButton: true),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(-1.0, 0.0); // 왼쪽에서 시작
+                            const end = Offset.zero;
+                            final tween = Tween(
+                              begin: begin,
+                              end: end,
+                            ).chain(CurveTween(curve: Curves.easeOut));
+                            return SlideTransition(
+                              position: animation.drive(tween),
+                              child: child,
+                            );
+                          },
                     ),
                   );
                 },
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings,
-                  color: Colors.black87,
-                  size: 26,
-                ),
-                onPressed: () {
-                  // 설정 화면으로 이동
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-
-          // 에러 메시지 표시
-          if (_errorMessage != null)
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.errorBackground,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.errorBorder),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: AppColors.error),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(
-                          color: AppColors.error,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: AppColors.error,
-                      ),
-                      onPressed: () => setState(() => _errorMessage = null),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // 포트폴리오 요약 카드 영역
-          SliverToBoxAdapter(
-            child: _buildPortfolioSummary(
-              totalReturnPercent: totalReturnPercent,
-              totalProfit: totalProfit,
-              totalCurrent: totalCurrent,
-              totalBuy: totalBuy,
-              stockCount: stockCount,
-            ),
-          ),
-
-          // 보유 종목 섹션 헤더: "보유 종목" + "종목 추가" 버튼
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 16, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '보유 종목',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                  // 종목 추가 버튼 - 탭 시 하단 시트 표시
-                  GestureDetector(
-                    onTap: _onAddStockTap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xff2563EB),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, color: Colors.white, size: 16),
-                          SizedBox(width: 4),
-                          Text(
-                            '종목 추가',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 로딩 중 표시
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          // 보유 종목 카드 리스트
-          else if (_portfolio.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.inbox_outlined,
-                      size: 64,
-                      color: Colors.grey.shade300,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '보유 종목이 없습니다',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '종목 추가 버튼을 눌러 종목을 추가하세요',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return PortfolioCard(
-                  item: _portfolio[index],
-                  onAiAnalysisTap: () {
-                    // AI 분석 채팅 화면으로 이동
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.black87, size: 26),
+                  onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AiAnalysisScreen(item: _portfolio[index]),
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            const SettingsScreen(),
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
+                              const begin = Offset(1.0, 0.0); // 오른쪽에서 시작
+                              const end = Offset.zero;
+                              final tween = Tween(
+                                begin: begin,
+                                end: end,
+                              ).chain(CurveTween(curve: Curves.easeOutCubic));
+                              return SlideTransition(
+                                position: animation.drive(tween),
+                                child: child,
+                              );
+                            },
                       ),
                     );
                   },
-                );
-              }, childCount: _portfolio.length),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
 
-          // 하단 여백 (네비게이션 바에 가리지 않도록)
-          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-        ],
+            // 에러 메시지 표시
+            if (_errorMessage != null)
+              SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorBackground,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.errorBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: AppColors.error),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                        onPressed: () => setState(() => _errorMessage = null),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // 포트폴리오 요약 카드 영역
+            SliverToBoxAdapter(
+              child: _buildPortfolioSummary(
+                totalReturnPercent: totalReturnPercent,
+                totalProfit: totalProfit,
+                totalCurrent: totalCurrent,
+                totalBuy: totalBuy,
+                stockCount: stockCount,
+              ),
+            ),
+
+            // 보유 종목 섹션 헤더: "보유 종목" + "종목 추가" 버튼
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '보유 종목',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    // 종목 추가 버튼 - 탭 시 하단 시트 표시
+                    GestureDetector(
+                      onTap: _onAddStockTap,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff2563EB),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              '종목 추가',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 로딩 중 표시
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            // 보유 종목 카드 리스트
+            else if (_portfolio.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 64,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '보유 종목이 없습니다',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '종목 추가 버튼을 눌러 종목을 추가하세요',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final portfolioItem = _portfolio[index];
+                  return PortfolioCard(
+                    item: portfolioItem,
+                    onAiAnalysisTap: () {
+                      // AI 분석 채팅 화면으로 이동
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              AiAnalysisScreen(item: portfolioItem),
+                        ),
+                      );
+                    },
+                    onDeleteTap: () async {
+                      // DELETE /portfolio/:stockCode 호출 후 성공 시 리스트에서 제거
+                      final stockCode = portfolioItem.ticker;
+                      final success = await _apiService.deletePortfolioItem(
+                        stockCode,
+                      );
+                      if (!mounted) return;
+                      if (success) {
+                        setState(() {
+                          _portfolio.removeAt(index);
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('종목 삭제에 실패했습니다. 다시 시도해주세요.'),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                }, childCount: _portfolio.length),
+              ),
+
+            // 하단 여백 (네비게이션 바에 가리지 않도록)
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+          ],
+        ),
       ),
     );
   }

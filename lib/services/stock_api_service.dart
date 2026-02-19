@@ -133,6 +133,31 @@ class StockApiService {
     }
   }
 
+  /// 포트폴리오에서 종목을 삭제하는 DELETE 요청
+  /// DELETE /portfolio/:stockCode — 삭제할 종목의 코드를 경로에 전달한다
+  ///
+  /// [stockCode] 삭제할 종목 코드 (예: 005930, AAPL)
+  /// 반환: 성공 시 true, 실패 시 false
+  Future<bool> deletePortfolioItem(String stockCode) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/portfolio/$stockCode'),
+        headers: _buildHeaders(),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ 포트폴리오 종목 삭제 성공: $stockCode');
+        return true;
+      } else {
+        print('❌ 포트폴리오 삭제 실패: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ 포트폴리오 삭제 API 호출 실패: $e');
+      return false;
+    }
+  }
+
   /// 포트폴리오에 종목을 추가하는 POST 요청
   /// 서버에 종목명, 매수가, 수량을 전송한다
   ///

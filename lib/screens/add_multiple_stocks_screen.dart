@@ -18,11 +18,11 @@ class AddMultipleStocksScreen extends StatefulWidget {
 }
 
 class _AddMultipleStocksScreenState extends State<AddMultipleStocksScreen> {
-  // 추가된 종목 리스트
+  // 화면에서 추가한 종목 리스트 (완료 시에만 서버로 저장)
   final List<PortfolioItem> _addedStocks = [];
-  // API 서비스 인스턴스
+  // API 서비스 인스턴스 (완료 버튼에서만 사용)
   final _apiService = StockApiService();
-  // 저장 중 상태
+  // 완료 버튼 저장 중 상태
   bool _isSaving = false;
 
   @override
@@ -245,14 +245,40 @@ class _AddMultipleStocksScreenState extends State<AddMultipleStocksScreen> {
   }
 
   /// 종목 추가 버튼 클릭 시
-  /// 기존의 add_stock_bottom_sheet 호출
+  /// 하단 시트에서 입력받은 종목을 API 호출 없이 카드로만 추가 (완료 시 일괄 저장)
+  /// 이미 존재하는 종목이면 알림창 표시 후 추가하지 않음
   Future<void> _onAddStockTap() async {
-    final result = await showAddStockBottomSheet(context);
-    if (result != null) {
-      setState(() {
-        _addedStocks.add(result);
-      });
+    final result = await showAddStockBottomSheet(context, saveToServer: false);
+    if (result == null) return;
+
+    final alreadyExists = _addedStocks.any((s) =>
+        s.name.trim().toLowerCase() == result.name.trim().toLowerCase() ||
+        (result.ticker.isNotEmpty &&
+            s.ticker.trim().toLowerCase() == result.ticker.trim().toLowerCase()));
+
+    if (alreadyExists) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('중복 종목'),
+          content: Text(
+            '${result.name} 종목이 이미 목록에 있습니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return;
     }
+
+    setState(() {
+      _addedStocks.add(result);
+    });
   }
 
   /// 종목 삭제
