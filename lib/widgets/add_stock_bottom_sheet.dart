@@ -44,6 +44,9 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   double? _selectedCurrentPrice; // 선택된 종목의 현재가
   bool _showSearchResults = false; // 검색 결과 표시 여부
   bool _isSaving = false; // 저장 중 상태
+  String? _searchError; // 종목명 미입력 시 필드 하단 에러 문구
+  String? _priceError; // 매수가 0원일 때 필드 하단 에러 문구
+  String? _quantityError; // 보유 수량 0개일 때 필드 하단 에러 문구
   final _apiService = StockApiService(); // API 서비스 인스턴스
 
   /// 안내 메시지(SnackBar)를 안전하게 표시
@@ -74,13 +77,31 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
 
   /// 매수가 입력값을 double로 파싱
   double get _buyPrice {
-    final text = _priceController.text.replaceAll(',', '');
+    final text = _priceController.text.replaceAll(',', '').trim();
     return double.tryParse(text) ?? 0;
   }
 
   /// 보유 수량 입력값을 int로 파싱
   int get _quantity {
-    return int.tryParse(_quantityController.text) ?? 0;
+    return int.tryParse(_quantityController.text.trim()) ?? 0;
+  }
+
+  /// 매수가 형식 검증: 파싱 실패, 선행 0(0400 등) → false
+  bool get _isPriceValid {
+    final text = _priceController.text.replaceAll(',', '').trim();
+    if (text.isEmpty) return false;
+    if (double.tryParse(text) == null) return false;
+    if (text.startsWith('0') && text.length > 1) return false;
+    return true;
+  }
+
+  /// 보유 수량 형식 검증: 파싱 실패, 선행 0(0400 등) → false
+  bool get _isQuantityValid {
+    final text = _quantityController.text.trim();
+    if (text.isEmpty) return false;
+    if (int.tryParse(text) == null) return false;
+    if (text.startsWith('0') && text.length > 1) return false;
+    return true;
   }
 
   /// 예상 투자금액 = 매수가 × 보유 수량
@@ -130,11 +151,33 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
 
     final stockName = _searchController.text.trim();
 
-    if (stockName.isEmpty || _buyPrice <= 0 || _quantity <= 0) {
-      _showMessage('종목명을 입력하고, 매수가/수량을 올바르게 입력해주세요.');
-      setState(() => _isSaving = false);
+    final priceInvalid = !_isPriceValid;
+    final quantityInvalid = !_isQuantityValid;
+    final priceZero = _buyPrice <= 0;
+    final quantityZero = _quantity <= 0;
+
+    if (stockName.isEmpty || priceInvalid || quantityInvalid || priceZero || quantityZero) {
+      setState(() {
+        _isSaving = false;
+        _searchError = stockName.isEmpty ? '필수 입력 값입니다' : null;
+        _priceError = priceInvalid
+            ? '입력된 값이 올바르지 않습니다'
+            : (priceZero ? '매수가격은 0원 이상이어야 합니다' : null);
+        _quantityError = quantityInvalid
+            ? '입력된 값이 올바르지 않습니다'
+            : (quantityZero ? '보유 수량은 최소 1개 이상이어야 합니다' : null);
+      });
+      if (stockName.isEmpty || quantityInvalid || quantityZero) {
+        _showMessage('종목명을 입력하고, 매수가/수량을 올바르게 입력해주세요.');
+      }
       return;
     }
+
+    setState(() {
+      _searchError = null;
+      _priceError = null;
+      _quantityError = null;
+    });
 
     final item = PortfolioItem(
       name: stockName,
@@ -295,35 +338,52 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   }
 
   /// 종목 검색 입력 필드 위젯
+  /// _searchError가 있으면 테두리 빨간색 + 하단에 에러 문구 표시
   Widget _buildSearchField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            _showSearchResults = value.isNotEmpty;
-            // 텍스트가 변경되면 이전 선택 초기화
-            if (_selectedStockName != null && value != _selectedStockName) {
-              _selectedStockName = null;
-              _selectedStockTicker = null;
-              _selectedCurrentPrice = null;
-            }
-          });
-        },
-        decoration: InputDecoration(
-          hintText: '종목명 또는 코드 입력',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+    final hasError = _searchError != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: hasError
+                ? Border.all(color: Colors.red, width: 1.5)
+                : null,
+          ),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchError = null;
+                _showSearchResults = value.isNotEmpty;
+                if (_selectedStockName != null && value != _selectedStockName) {
+                  _selectedStockName = null;
+                  _selectedStockTicker = null;
+                  _selectedCurrentPrice = null;
+                }
+              });
+            },
+            decoration: InputDecoration(
+              hintText: '종목명 또는 코드 입력',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+            ),
           ),
         ),
-      ),
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          Text(
+            _searchError!,
+            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+          ),
+        ],
+      ],
     );
   }
 
@@ -375,49 +435,93 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   }
 
   /// 매수가 입력 필드 (숫자 입력 + "원" 접미사)
+  /// _priceError가 있으면 테두리 빨간색 + 하단에 에러 문구 표시
   Widget _buildPriceField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        controller: _priceController,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        onChanged: (_) => setState(() {}), // 예상 투자금액 갱신
-        decoration: InputDecoration(
-          suffixText: '원',
-          suffixStyle: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+    final hasError = _priceError != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: hasError
+                ? Border.all(color: Colors.red, width: 1.5)
+                : null,
+          ),
+          child: TextField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) => setState(() {
+              _priceError = null; // 입력 시 에러 제거
+            }),
+            decoration: InputDecoration(
+              suffixText: '원',
+              suffixStyle: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+            ),
+            style: const TextStyle(fontSize: 15),
           ),
         ),
-        style: const TextStyle(fontSize: 15),
-      ),
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          Text(
+            _priceError!,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
   /// 보유 수량 입력 필드
+  /// _quantityError가 있으면 테두리 빨간색 + 하단에 에러 문구 표시
   Widget _buildQuantityField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        controller: _quantityController,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        onChanged: (_) => setState(() {}), // 예상 투자금액 갱신
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    final hasError = _quantityError != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: hasError
+                ? Border.all(color: Colors.red, width: 1.5)
+                : null,
+          ),
+          child: TextField(
+            controller: _quantityController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) => setState(() {
+              _quantityError = null; // 입력 시 에러 제거
+            }),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+            style: const TextStyle(fontSize: 15),
+          ),
         ),
-        style: const TextStyle(fontSize: 15),
-      ),
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          Text(
+            _quantityError!,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
