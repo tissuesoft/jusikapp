@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'auth_service.dart';
 import 'stock_api_service.dart';
+import 'notification_store.dart';
 import '../screens/open_chat_from_push_screen.dart';
 
 /// FCM 푸시 알림을 처리하는 서비스 (정적 메서드 위주)
@@ -55,20 +56,23 @@ class PushService {
     // 앱이 종료된 상태에서 알림 탭으로 실행된 경우
     final initialMessage = await messaging.getInitialMessage();
     if (initialMessage != null) {
+      _addPushToStore(initialMessage);
       _handleMessageData(initialMessage.data);
     }
 
     // 앱이 백그라운드에 있다가 알림 탭으로 복귀한 경우
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _addPushToStore(message);
       _handleMessageData(message.data);
     });
 
-    // 포그라운드에서 푸시 수신 시 로컬 알림으로 표시 (시스템은 포그라운드에서 자동 표시 안 함)
+    // 포그라운드에서 푸시 수신 시 알림 목록에 추가 + 로컬 알림 표시
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('📩 포그라운드 푸시: ${message.notification?.title} / ${message.notification?.body}');
       if (message.data.isNotEmpty) {
         print('   data: ${message.data}');
       }
+      _addPushToStore(message);
       _showLocalNotification(
         title: message.notification?.title ?? '알림',
         body: message.notification?.body ?? '',
@@ -161,6 +165,19 @@ class PushService {
       body,
       details,
       payload: payload,
+    );
+  }
+
+  /// 수신한 푸시를 알림 목록(NotificationStore)에 추가 — 알림 화면·배지에 반영
+  static void _addPushToStore(RemoteMessage message) {
+    final title = message.notification?.title ?? '알림';
+    final body = message.notification?.body ?? '';
+    final portfolioIdStr = message.data['portfolioId']?.toString();
+    final portfolioId = portfolioIdStr != null ? int.tryParse(portfolioIdStr) : null;
+    NotificationStore.instance.add(
+      title: title,
+      body: body,
+      portfolioId: portfolioId,
     );
   }
 

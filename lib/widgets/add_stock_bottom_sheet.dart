@@ -156,7 +156,11 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
     final priceZero = _buyPrice <= 0;
     final quantityZero = _quantity <= 0;
 
-    if (stockName.isEmpty || priceInvalid || quantityInvalid || priceZero || quantityZero) {
+    if (stockName.isEmpty ||
+        priceInvalid ||
+        quantityInvalid ||
+        priceZero ||
+        quantityZero) {
       setState(() {
         _isSaving = false;
         _searchError = stockName.isEmpty ? '필수 입력 값입니다' : null;
@@ -199,13 +203,26 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
       if (success) {
         Navigator.pop(context, item);
       } else {
-        _showMessage('종목 저장에 실패했습니다. 다시 시도해주세요.', backgroundColor: Colors.red.shade400);
-        setState(() => _isSaving = false);
+        // 500 등 서버 에러 시: 매수가/수량 필드와 동일하게 _searchError 설정 후 setState
+        setState(() {
+          _isSaving = false;
+          _searchError = '존재하지 않는 종목입니다';
+        });
+        _showMessage(
+          '종목 저장에 실패했습니다. 다시 시도해주세요.',
+          backgroundColor: Colors.red.shade400,
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      _showMessage('종목 저장 중 오류가 발생했습니다: $e', backgroundColor: Colors.red.shade400);
-      setState(() => _isSaving = false);
+      setState(() {
+        _isSaving = false;
+        _searchError = '존재하지 않는 종목입니다';
+      });
+      _showMessage(
+        '종목 저장 중 오류가 발생했습니다: $e',
+        backgroundColor: Colors.red.shade400,
+      );
     }
   }
 
@@ -338,7 +355,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   }
 
   /// 종목 검색 입력 필드 위젯
-  /// _searchError가 있으면 테두리 빨간색 + 하단에 에러 문구 표시
+  /// _searchError가 있으면 테두리 빨간색 + 하단에 에러 문구 표시 (매수가/수량 필드와 동일 패턴)
   Widget _buildSearchField() {
     final hasError = _searchError != null;
     return Column(
@@ -348,15 +365,16 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
-            border: hasError
-                ? Border.all(color: Colors.red, width: 1.5)
-                : null,
+            border: Border.all(
+              color: hasError ? Colors.red : Colors.grey.shade200,
+              width: hasError ? 1.5 : 1,
+            ),
           ),
           child: TextField(
             controller: _searchController,
             onChanged: (value) {
               setState(() {
-                _searchError = null;
+                _searchError = null; // 입력 시 에러 제거 (매수가/수량 필드와 동일)
                 _showSearchResults = value.isNotEmpty;
                 if (_selectedStockName != null && value != _selectedStockName) {
                   _selectedStockName = null;
@@ -445,9 +463,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
-            border: hasError
-                ? Border.all(color: Colors.red, width: 1.5)
-                : null,
+            border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
           ),
           child: TextField(
             controller: _priceController,
@@ -472,10 +488,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           const SizedBox(height: 6),
           Text(
             _priceError!,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.red.shade700,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
           ),
         ],
       ],
@@ -493,9 +506,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
-            border: hasError
-                ? Border.all(color: Colors.red, width: 1.5)
-                : null,
+            border: hasError ? Border.all(color: Colors.red, width: 1.5) : null,
           ),
           child: TextField(
             controller: _quantityController,
@@ -506,7 +517,10 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
             }),
             decoration: const InputDecoration(
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
             style: const TextStyle(fontSize: 15),
           ),
@@ -515,10 +529,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           const SizedBox(height: 6),
           Text(
             _quantityError!,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.red.shade700,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.red.shade700),
           ),
         ],
       ],
@@ -549,9 +560,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   /// "종목 추가" 버튼 위젯
   Widget _buildSaveButton() {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       child: SizedBox(
         width: double.infinity,
         height: 56,
@@ -583,7 +592,10 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
                     SizedBox(width: 8),
                     Text(
                       '종목 추가',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
