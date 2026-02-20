@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../services/stock_api_service.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
 
@@ -55,6 +56,14 @@ class SettingsScreen extends StatelessWidget {
             title: '알림 설정',
             subtitle: '가격 알림, 뉴스 알림',
             onTap: () {},
+          ),
+          _buildItemDivider(),
+          _buildSettingsTile(
+            icon: Icons.send,
+            iconColor: const Color(0xFF1565C0),
+            title: '테스트 알림 보내기',
+            subtitle: '현재 기기로 테스트 푸시 1건 발송 (POST /push/test)',
+            onTap: () => _sendTestPush(context),
           ),
           _buildSectionDivider(),
 
@@ -156,6 +165,24 @@ class SettingsScreen extends StatelessWidget {
 
           const SizedBox(height: 40),
         ],
+      ),
+    );
+  }
+
+  /// POST /push/test 호출로 현재 로그인 유저 기기에 테스트 푸시 1건 발송
+  Future<void> _sendTestPush(BuildContext context) async {
+    final api = StockApiService();
+    final success = await api.sendTestPush();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? '테스트 알림을 발송했습니다. 잠시 후 기기로 도착합니다.'
+              : '테스트 알림 발송에 실패했습니다.',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: success ? null : Colors.red.shade400,
       ),
     );
   }
