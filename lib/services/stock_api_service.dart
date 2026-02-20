@@ -193,6 +193,144 @@ class StockApiService {
     }
   }
 
+  /// 포트폴리오(종목)별 이전 채팅 기록을 조회하는 GET 요청
+  /// GET /portfolio/{portfolioId}/messages — 종목 ID로 해당 채팅 기록을 가져온다
+  ///
+  /// [portfolioId] /portfolio/home 응답의 해당 종목 portfolio_id
+  /// 반환: 메시지 목록 (실패 시 빈 리스트)
+  Future<List<PortfolioChatMessageDto>> fetchPortfolioMessages(
+    int portfolioId,
+  ) async {
+    try {
+      final url = '$_baseUrl/portfolio/$portfolioId/messages';
+      print('📡 채팅 기록 요청: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: _buildHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final list = data['messages'] as List<dynamic>?;
+        if (list == null) return [];
+        final messages = list
+            .map((e) =>
+                PortfolioChatMessageDto.fromJson(e as Map<String, dynamic>))
+            .toList();
+        print('✅ 채팅 기록 로드 성공: ${messages.length}건');
+        return messages;
+      } else {
+        print('❌ 채팅 기록 조회 실패: ${response.statusCode} ${response.body}');
+        return [];
+      }
+    } catch (e, stackTrace) {
+      print('❌ 채팅 기록 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return [];
+    }
+  }
+
+  /// FCM 푸시 토큰을 백엔드에 등록하는 POST 요청
+  /// POST /push/register — body: { "token": "<FCM_토큰>", "platform": "android" }
+  /// 서버는 등록된 토큰으로만 푸시를 보낸다.
+  ///
+  /// [token] FirebaseMessaging.instance.getToken()으로 획득한 FCM 디바이스 토큰
+  /// [platform] "android" 또는 "ios"
+  /// 반환: 성공 시 true
+  Future<bool> registerPushToken(String token, String platform) async {
+    try {
+      final url = '$_baseUrl/push/register';
+      print('📡 FCM 토큰 등록: $url (platform: $platform)');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _buildHeaders(
+          extraHeaders: {'Content-Type': 'application/json'},
+        ),
+        body: json.encode({'token': token, 'platform': platform}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ FCM 토큰 등록 성공');
+        return true;
+      } else {
+        print('❌ FCM 토큰 등록 실패: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('❌ FCM 토큰 등록 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return false;
+    }
+  }
+
+  /// 로그인한 유저의 기기로 테스트 푸시 1건 발송
+  /// POST /push/test — Header: Authorization: Bearer <JWT>
+  /// 반환: 성공 시 true
+  Future<bool> sendTestPush() async {
+    try {
+      final url = '$_baseUrl/push/test';
+      print('📡 테스트 푸시 요청: $url');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _buildHeaders(
+          extraHeaders: {'Content-Type': 'application/json'},
+        ),
+        body: json.encode({}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ 테스트 푸시 발송 요청 성공');
+        return true;
+      } else {
+        print('❌ 테스트 푸시 실패: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('❌ 테스트 푸시 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return false;
+    }
+  }
+
+  /// 포트폴리오(종목) 채팅 메시지를 전송하고 AI 응답을 받는 POST 요청
+  /// POST /portfolio/{portfolioId}/messages — body: { "message": "질문 내용" }
+  /// 응답: { "reply": "AI 응답 텍스트" }
+  ///
+  /// [portfolioId] 종목(포트폴리오) ID
+  /// [message] 사용자가 입력한 메시지
+  /// 반환: AI 응답 텍스트 (실패 시 null)
+  Future<String?> sendPortfolioMessage(int portfolioId, String message) async {
+    try {
+      final url = '$_baseUrl/portfolio/$portfolioId/messages';
+      print('📡 채팅 메시지 전송: $url');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _buildHeaders(
+          extraHeaders: {'Content-Type': 'application/json'},
+        ),
+        body: json.encode({'message': message}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final reply = data['reply'] as String?;
+        print('✅ AI 응답 수신 (길이: ${reply?.length ?? 0})');
+        return reply;
+      } else {
+        print('❌ 채팅 전송 실패: ${response.statusCode} ${response.body}');
+        return null;
+      }
+    } catch (e, stackTrace) {
+      print('❌ 채팅 전송 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return null;
+    }
+  }
+
   /// 특정 종목의 현재가를 조회
   ///
   /// [ticker] 종목 코드

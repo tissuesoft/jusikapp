@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 
 /// 스플래시 화면 위젯 (StatefulWidget)
 /// 로고 페이드인 + 스케일 애니메이션 후 메인 화면으로 이동
@@ -66,8 +67,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // 토큰이 있으면 메인 화면으로, 없으면 로그인 화면으로 이동
+    // 토큰이 있으면 FCM 푸시 토큰을 백엔드에 등록한 뒤 메인으로, 없으면 로그인으로 이동
     if (AuthService.instance.hasToken) {
+      await PushService.registerTokenWithBackend();
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/main');
     } else {
       Navigator.of(context).pushReplacementNamed('/login');

@@ -7,6 +7,7 @@ import '../models/portfolio.dart';
 import '../models/chat_message.dart';
 import '../data/mock_ai_responses.dart';
 import '../constants/colors.dart';
+import '../services/stock_api_service.dart';
 
 /// AI 분석 채팅 화면 (StatefulWidget)
 /// 종목 정보를 전달받아 채팅 인터페이스로 AI 분석 결과를 표시한다
@@ -30,12 +31,20 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   int _responseIndex = 0;
   // AI 타이핑 애니메이션 표시 여부
   bool _isAiTyping = false;
+  // 이전 채팅 기록 로딩 중 여부 (GET /portfolio/{id}/messages)
+  bool _isLoadingMessages = true;
+  final _apiService = StockApiService();
 
   @override
   void initState() {
     super.initState();
-    // 초기 AI 분석 메시지 로드
-    _loadInitialMessages();
+    // portfolioId가 있으면 서버에서 이전 채팅 기록 조회, 없으면 모의 초기 메시지 로드
+    if (widget.item.portfolioId != null) {
+      _loadMessagesFromApi();
+    } else {
+      _isLoadingMessages = false;
+      _loadInitialMessages();
+    }
   }
 
   @override
@@ -45,7 +54,57 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
     super.dispose();
   }
 
+  /// GET /portfolio/{portfolioId}/messages로 이전 채팅 기록을 조회한 뒤 렌더링한다
+  /// 응답이 있으면 해당 메시지로 채팅 목록을 채우고, 없으면 모의 초기 메시지를 로드한다
+  Future<void> _loadMessagesFromApi() async {
+    final portfolioId = widget.item.portfolioId!;
+    final list = await _apiService.fetchPortfolioMessages(portfolioId);
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingMessages = false;
+      if (list.isNotEmpty) {
+        for (final dto in list) {
+          _messages.add(_dtoToChatMessage(dto));
+        }
+      }
+    });
+    _scrollToBottom();
+
+    // 서버에 기록이 없으면 기존처럼 모의 초기 메시지 표시
+    if (list.isEmpty) {
+      _loadInitialMessages();
+    }
+  }
+
+  /// API 응답 메시지(DTO)를 화면용 ChatMessage로 변환한다
+  /// role "user" → 사용자, "assistant" → AI, created_at → "오전/오후 시:분" 형식
+  ChatMessage _dtoToChatMessage(PortfolioChatMessageDto dto) {
+    final sender = dto.role == 'user'
+        ? MessageSender.user
+        : MessageSender.ai;
+    DateTime dt;
+    try {
+      dt = DateTime.parse(dto.createdAt);
+    } catch (_) {
+      dt = DateTime.now();
+    }
+    final hour = dt.hour;
+    final minute = dt.minute;
+    final isPm = hour >= 12;
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final timestamp =
+        '${isPm ? "오후" : "오전"} $displayHour:${minute.toString().padLeft(2, '0')}';
+
+    return ChatMessage(
+      sender: sender,
+      text: dto.message,
+      timestamp: timestamp,
+    );
+  }
+
   /// 초기 메시지(인사 + 자동 분석)를 지연 로드하여 채팅 효과를 준다
+  /// 서버에 채팅 기록이 없을 때만 호출된다
   Future<void> _loadInitialMessages() async {
     final initialMessages = getInitialMessages(
       widget.item.name,
@@ -64,9 +123,11 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   }
 
   /// 사용자가 메시지를 전송할 때 호출
+  /// portfolioId가 있으면 POST /portfolio/{portfolioId}/messages로 전송 후 응답 reply를 채팅에 추가한다
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
 
+    final trimmed = text.trim();
     final now = TimeOfDay.now();
     final timestamp =
         '${now.hour > 12 ? "오후" : "오전"} ${now.hour > 12 ? now.hour - 12 : now.hour}:${now.minute.toString().padLeft(2, '0')}';
@@ -76,7 +137,7 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
       _messages.add(
         ChatMessage(
           sender: MessageSender.user,
-          text: text,
+          text: trimmed,
           timestamp: timestamp,
         ),
       );
@@ -85,7 +146,43 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
     _textController.clear();
     _scrollToBottom();
 
-    // AI 응답을 지연 후 추가 (타이핑 효과)
+    // portfolioId가 있으면 서버에 POST 후 응답을 채팅에 추가, 없으면 기존 모의 응답 사용
+    if (widget.item.portfolioId != null) {
+      _requestAiReply(trimmed);
+    } else {
+      _addMockReply();
+    }
+  }
+
+  /// POST /portfolio/{portfolioId}/messages 호출 후 응답 reply를 채팅 목록에 추가한다
+  Future<void> _requestAiReply(String userMessage) async {
+    final portfolioId = widget.item.portfolioId!;
+    // 짧은 타이핑 효과를 위해 약간 대기
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final reply = await _apiService.sendPortfolioMessage(portfolioId, userMessage);
+
+    if (!mounted) return;
+
+    final responseTime = TimeOfDay.now();
+    final responseTimestamp =
+        '${responseTime.hour > 12 ? "오후" : "오전"} ${responseTime.hour > 12 ? responseTime.hour - 12 : responseTime.hour}:${responseTime.minute.toString().padLeft(2, '0')}';
+
+    setState(() {
+      _isAiTyping = false;
+      _messages.add(
+        ChatMessage(
+          sender: MessageSender.ai,
+          text: reply ?? '응답을 불러오지 못했습니다. 다시 시도해 주세요.',
+          timestamp: responseTimestamp,
+        ),
+      );
+    });
+    _scrollToBottom();
+  }
+
+  /// portfolioId가 없을 때 기존 모의 AI 응답을 채팅에 추가한다
+  void _addMockReply() {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
 
@@ -185,20 +282,27 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
       ),
       body: Column(
         children: [
-          // 채팅 메시지 목록 영역
+          // 채팅 메시지 목록 영역 (로딩 중일 때는 로딩 표시)
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              itemCount: _messages.length + (_isAiTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                // 마지막이 타이핑 인디케이터인 경우
-                if (index == _messages.length && _isAiTyping) {
-                  return _buildTypingIndicator();
-                }
-                return _buildMessageBubble(_messages[index]);
-              },
-            ),
+            child: _isLoadingMessages
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    itemCount: _messages.length + (_isAiTyping ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      // 마지막이 타이핑 인디케이터인 경우
+                      if (index == _messages.length && _isAiTyping) {
+                        return _buildTypingIndicator();
+                      }
+                      return _buildMessageBubble(_messages[index]);
+                    },
+                  ),
           ),
           // 하단 메시지 입력 영역
           _buildInputArea(),

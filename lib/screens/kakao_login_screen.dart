@@ -11,6 +11,7 @@ import '../constants/colors.dart';
 import '../constants/api_config.dart';
 // JWT 토큰 관리를 위한 AuthService import
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 
 /// 카카오톡 로그인 화면 위젯 (StatefulWidget)
 /// StatefulWidget: 화면 내부 상태(로딩 여부 등)가 변할 수 있는 위젯
@@ -306,6 +307,8 @@ class _KakaoLoginScreenState extends State<KakaoLoginScreen> {
       if (jwtToken.isNotEmpty) {
         await AuthService.instance.setToken(jwtToken);
         debugPrint('JWT 토큰 로컬 저장 완료');
+        // FCM 푸시 토큰을 백엔드에 등록 (서버가 푸시 발송 대상으로 인식)
+        await PushService.registerTokenWithBackend();
       } else {
         throw Exception('JWT 토큰이 없습니다');
       }

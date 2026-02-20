@@ -8,6 +8,14 @@ import 'screens/splash_screen.dart';
 import 'screens/kakao_login_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/add_multiple_stocks_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'services/push_service.dart';
+
+/// FCM 백그라운드/종료 상태에서 푸시 수신 시 호출되는 진입점 (플러그인 요구사항)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // 알림 탭 시에는 getInitialMessage / onMessageOpenedApp에서 처리
+}
 
 void main() async {
   // Flutter 엔진 초기화 (카카오 SDK 초기화 전 필수)
@@ -21,15 +29,25 @@ void main() async {
   var keyHash = await KakaoSdk.origin;
   print('카카오 키 해시: $keyHash');
 
+  // Firebase / FCM 초기화 및 푸시 리스너 등록 (알림 탭 시 채팅 이동)
+  await PushService.setup();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   runApp(const StockRecommenderApp());
 }
 
 class StockRecommenderApp extends StatelessWidget {
   const StockRecommenderApp({super.key});
 
+  /// FCM 알림 탭 시 라우팅에 사용 (PushService에서 채팅 화면으로 이동)
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
+    PushService.setNavigatorKey(navigatorKey);
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: '주식 추천',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
