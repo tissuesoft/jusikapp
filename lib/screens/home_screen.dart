@@ -7,6 +7,7 @@ import '../utils/formatters.dart';
 import '../widgets/portfolio_card.dart';
 import '../widgets/add_stock_bottom_sheet.dart';
 import '../services/stock_api_service.dart';
+import '../services/notification_store.dart';
 import '../constants/colors.dart';
 import 'ai_analysis_screen.dart';
 import 'notification_screen.dart';
@@ -31,10 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final _apiService = StockApiService();
   bool _isLoading = false;
   String? _errorMessage;
-  // 읽지 않은 알림 개수 (실제로는 API나 로컬 저장소에서 가져와야 함)
-  final int _unreadNotificationCount = 42;
+  // 읽지 않은 알림 개수 (NotificationStore에서 구독)
+  int _unreadNotificationCount = 0;
   // 중복 호출 방지 플래그
   bool _isLoadingPortfolio = false;
+  final NotificationStore _notificationStore = NotificationStore.instance;
 
   /// 외부에서 호출 가능한 새로고침 메서드
   /// 종목 추가 후 메인 화면으로 돌아올 때 호출됨
@@ -46,8 +48,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면 로드 시 서버에서 포트폴리오 데이터를 가져온다
+    _unreadNotificationCount = _notificationStore.unreadCount;
+    _notificationStore.addListener(_onNotificationStoreChanged);
     _loadPortfolioHome();
+  }
+
+  @override
+  void dispose() {
+    _notificationStore.removeListener(_onNotificationStoreChanged);
+    super.dispose();
+  }
+
+  void _onNotificationStoreChanged() {
+    if (mounted) {
+      setState(() {
+        _unreadNotificationCount = _notificationStore.unreadCount;
+      });
+    }
   }
 
   /// 서버에서 포트폴리오 홈 데이터를 GET 요청으로 가져온다

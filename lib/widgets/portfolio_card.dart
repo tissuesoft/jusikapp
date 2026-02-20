@@ -137,26 +137,24 @@ class PortfolioCard extends StatelessWidget {
             ],
           ),
         ),
-        // 우측: 수익률(%), 손익 금액
+        // 우측: 수익률(%) — change_percent, 손익 금액(원) — change_amount (API 값 우선)
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '${item.isPositive ? '+' : ''}${item.returnPercent.toStringAsFixed(1)}%',
+              '${item.isPositive ? '+' : ''}${item.displayChangePercent.toStringAsFixed(1)}%',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                // 수익/손실에 따른 색상
                 color: AppColors.getStockColor(item.isPositive),
               ),
             ),
             const SizedBox(height: 2),
             Text(
-              '${item.isPositive ? '+' : ''}${formatPrice(item.profitLoss, '₩')}',
+              '${item.isPositive ? '+' : ''}${formatPrice(item.displayChangeAmount, '₩')}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                // 수익/손실에 따른 색상
                 color: AppColors.getStockColor(item.isPositive),
               ),
             ),

@@ -123,9 +123,11 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   }
 
   /// 사용자가 메시지를 전송할 때 호출
-  /// portfolioId가 있으면 POST /portfolio/{portfolioId}/messages로 전송 후 응답 reply를 채팅에 추가한다
+  /// AI 응답 대기 중(_isAiTyping)이면 전송하지 않음. portfolioId가 있으면 POST로 전송 후 reply를 채팅에 추가.
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
+    // AI 응답이 오기 전에는 다음 메시지 전송 불가
+    if (_isAiTyping) return;
 
     final trimmed = text.trim();
     final now = TimeOfDay.now();
@@ -229,7 +231,7 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   Widget build(BuildContext context) {
     // 수익률 표시용 텍스트
     final returnText =
-        '${widget.item.isPositive ? '+' : ''}${widget.item.returnPercent.toStringAsFixed(1)}%';
+        '${widget.item.isPositive ? '+' : ''}${widget.item.displayChangePercent.toStringAsFixed(1)}%';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
@@ -607,7 +609,9 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
   }
 
   /// 하단 메시지 입력 영역 위젯
+  /// AI 응답 대기 중(_isAiTyping)이면 입력·전송 비활성화
   Widget _buildInputArea() {
+    final canSend = !_isAiTyping;
     return Container(
       padding: EdgeInsets.only(
         left: 12,
@@ -627,29 +631,37 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
       ),
       child: Row(
         children: [
-          // "+" 버튼 (추가 기능용)
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
+          // "+" 버튼 (추가 기능용) — 응답 대기 중 비활성화
+          Opacity(
+            opacity: canSend ? 1 : 0.5,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.add, color: Colors.grey.shade600, size: 22),
             ),
-            child: Icon(Icons.add, color: Colors.grey.shade600, size: 22),
           ),
           const SizedBox(width: 8),
-          // 텍스트 입력 필드
+          // 텍스트 입력 필드 — 응답 대기 중 읽기 전용
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F6FA),
+                color: canSend
+                    ? const Color(0xFFF5F6FA)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
                 controller: _textController,
+                readOnly: !canSend,
                 decoration: InputDecoration(
-                  hintText: '${widget.item.name}에 대해 물어보세요...',
+                  hintText: canSend
+                      ? '${widget.item.name}에 대해 물어보세요...'
+                      : 'AI가 응답 중입니다...',
                   hintStyle: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade400,
@@ -658,20 +670,21 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 ),
                 style: const TextStyle(fontSize: 14),
-                onSubmitted: _sendMessage,
+                onSubmitted: canSend ? _sendMessage : null,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          // 전송 버튼
+          // 전송 버튼 — 응답 대기 중 비활성화(탭 무시)
           GestureDetector(
-            onTap: () => _sendMessage(_textController.text),
+            onTap: canSend ? () => _sendMessage(_textController.text) : null,
             child: Container(
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                // 전송 버튼 배경색 - AppColors.primary 사용
-                color: AppColors.primary,
+                color: canSend
+                    ? AppColors.primary
+                    : Colors.grey.shade400,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.send, color: Colors.white, size: 20),
