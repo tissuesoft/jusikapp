@@ -71,6 +71,12 @@ class PortfolioItem {
   final int quantity;        // 보유 수량
   /// 등록 순서 (목록 정렬용, 서버에서 오지 않으면 배열 인덱스 사용)
   final int order;
+  /// 서버에서 부여한 포트폴리오(종목) ID — 채팅 기록 조회 시 사용 (GET /portfolio/{id}/messages)
+  final int? portfolioId;
+  /// 서버에서 내려준 변동 금액 (원) — 없으면 profitLoss 사용
+  final double? changeAmount;
+  /// 서버에서 내려준 변동률(수익률, %) — 없으면 returnPercent 사용
+  final double? changePercent;
 
   const PortfolioItem({
     required this.name,
@@ -79,6 +85,9 @@ class PortfolioItem {
     required this.currentPrice,
     required this.quantity,
     this.order = 0,
+    this.portfolioId,
+    this.changeAmount,
+    this.changePercent,
   });
 
   /// JSON 데이터를 PortfolioItem 객체로 변환하는 팩토리 생성자
@@ -98,8 +107,17 @@ class PortfolioItem {
           : (json['avg_price'] as num).toDouble(),
       quantity: (json['quantity'] as num).toInt(),               // 보유 수량
       order: orderFromJson ?? orderIndex ?? 0,                    // 등록 순서
+      portfolioId: (json['portfolio_id'] as num?)?.toInt(),     // 채팅 기록 조회용 ID
+      changeAmount: (json['change_amount'] as num?)?.toDouble(), // 변동 금액(원)
+      changePercent: (json['change_percent'] as num?)?.toDouble(), // 변동률(수익률 %)
     );
   }
+
+  /// 표시용 변동 금액 — 서버 값 우선, 없으면 매수가/현재가 기준 계산
+  double get displayChangeAmount => changeAmount ?? profitLoss;
+
+  /// 표시용 변동률(수익률 %) — 서버 값 우선, 없으면 계산
+  double get displayChangePercent => changePercent ?? returnPercent;
 
   /// 총 매입 금액 = 매수가 × 보유 수량
   double get totalBuyAmount => buyPrice * quantity;
@@ -113,6 +131,34 @@ class PortfolioItem {
   /// 수익률(%) = (평가 손익 / 총 매입 금액) × 100
   double get returnPercent => (profitLoss / totalBuyAmount) * 100;
 
-  /// 수익 여부 (수익률 0 이상이면 true)
-  bool get isPositive => returnPercent >= 0;
+  /// 수익 여부 (표시용 변동률 기준, 0 이상이면 true)
+  bool get isPositive => displayChangePercent >= 0;
+}
+
+/// GET /portfolio/{portfolioId}/messages 응답의 메시지 한 건
+/// 채팅 기록 조회 시 서버가 반환하는 구조를 파싱할 때 사용
+class PortfolioChatMessageDto {
+  final int chatMessageId;
+  final int portfolioId;
+  final String role;   // "user" | "assistant"
+  final String message;
+  final String createdAt;
+
+  const PortfolioChatMessageDto({
+    required this.chatMessageId,
+    required this.portfolioId,
+    required this.role,
+    required this.message,
+    required this.createdAt,
+  });
+
+  factory PortfolioChatMessageDto.fromJson(Map<String, dynamic> json) {
+    return PortfolioChatMessageDto(
+      chatMessageId: (json['chat_message_id'] as num).toInt(),
+      portfolioId: (json['portfolio_id'] as num).toInt(),
+      role: json['role'] as String,
+      message: json['message'] as String,
+      createdAt: json['created_at'] as String,
+    );
+  }
 }
