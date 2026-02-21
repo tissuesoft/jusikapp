@@ -3,19 +3,58 @@
 // 홈 화면 설정 아이콘 탭 또는 하단 네비게이션 '설정' 탭에서 진입한다
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../services/notification_preferences.dart';
 import '../services/stock_api_service.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
 
 /// 설정 화면 위젯
 /// 섹션별 메뉴 항목, 로그아웃 버튼, 앱 버전 정보 푸터로 구성
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   // 앱바에 뒤로가기 버튼을 표시할지 여부 (네비게이션 탭에서는 false)
   final bool showBackButton;
 
   const SettingsScreen({super.key, this.showBackButton = false});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+/// 설정 화면의 상태를 담는 클래스
+/// 알림 on/off 등 변경 가능한 설정값을 보관
+class _SettingsScreenState extends State<SettingsScreen> {
+  // 알림 설정 토글 값 (true: 켜짐, false: 꺼짐) — 저장된 값으로 초기화
+  bool _notificationEnabled = true;
+  // 앱 버전 (package_info_plus로 로드, 예: 1.0.0+1 → "1.0.0 (1)")
+  String _appVersion = '—';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPreference();
+    _loadAppVersion();
+  }
+
+  /// package_info_plus로 실제 앱 버전·빌드 번호 로드
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+      }
+    } catch (_) {}
+  }
+
+  /// 저장된 알림 수신 허용 여부를 불러와 상태에 반영
+  Future<void> _loadNotificationPreference() async {
+    final enabled = await NotificationPreferences.isEnabled();
+    if (mounted) {
+      setState(() => _notificationEnabled = enabled);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,15 +94,11 @@ class SettingsScreen extends StatelessWidget {
             iconColor: const Color(0xFF1565C0),
             title: '알림 설정',
             subtitle: '가격 알림, 뉴스 알림',
-            onTap: () {},
-          ),
-          _buildItemDivider(),
-          _buildSettingsTile(
-            icon: Icons.send,
-            iconColor: const Color(0xFF1565C0),
-            title: '테스트 알림 보내기',
-            subtitle: '현재 기기로 테스트 푸시 1건 발송 (POST /push/test)',
-            onTap: () => _sendTestPush(context),
+            switchValue: _notificationEnabled,
+            onSwitchChanged: (value) async {
+              await NotificationPreferences.setEnabled(value);
+              if (mounted) setState(() => _notificationEnabled = value);
+            },
           ),
           _buildSectionDivider(),
 
@@ -73,13 +108,17 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.phone_android,
             iconColor: const Color(0xFF1565C0),
             title: '앱 버전 정보',
-            trailing: 'v2.1.4',
+            trailing: _appVersion,
+            showChevron: false,
             onTap: () {},
           ),
           _buildSettingsTile(
             icon: Icons.mail,
             iconColor: const Color(0xFF1565C0),
             title: '개발자 이메일 : softtissue9697@gmail.com',
+            titleFontSize: 12,
+            titleMaxLines: 1,
+            showChevron: false,
             onTap: () => _sendEmail(),
           ),
           _buildSectionDivider(),
@@ -121,10 +160,9 @@ class SettingsScreen extends StatelessWidget {
               onPressed: () async {
                 await AuthService.instance.clearToken();
                 if (!context.mounted) return;
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/login',
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFFE53935)),
@@ -144,6 +182,31 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          const SizedBox(height: 12),
+
+          // ── 회원탈퇴 버튼 ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: OutlinedButton(
+              onPressed: () => _showWithdrawConfirm(context),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.grey.shade400),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Text(
+                '회원탈퇴',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
 
           // ── 앱 버전 및 저작권 푸터 ──
@@ -151,7 +214,7 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Stock Analysis AI v2.1.4',
+                  'Stock Analysis AI $_appVersion',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 4),
@@ -169,22 +232,51 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /// POST /push/test 호출로 현재 로그인 유저 기기에 테스트 푸시 1건 발송
-  Future<void> _sendTestPush(BuildContext context) async {
-    final api = StockApiService();
-    final success = await api.sendTestPush();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? '테스트 알림을 발송했습니다. 잠시 후 기기로 도착합니다.'
-              : '테스트 알림 발송에 실패했습니다.',
+  /// 회원탈퇴 확인 다이얼로그 표시 후 동의 시 DELETE /auth/withdraw 호출, 성공 시 토큰 삭제 후 로그인 화면으로 이동
+  Future<void> _showWithdrawConfirm(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('회원탈퇴'),
+        content: const Text(
+          '탈퇴 시 계정 및 관련 데이터가 삭제되며 복구할 수 없습니다.\n정말 탈퇴하시겠습니까?',
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: success ? null : Colors.red.shade400,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('취소', style: TextStyle(color: Colors.grey.shade700)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('탈퇴', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
       ),
     );
+    if (!context.mounted || confirmed != true) return;
+
+    final api = StockApiService();
+    final success = await api.withdrawAccount();
+    if (!context.mounted) return;
+    if (success) {
+      await AuthService.instance.clearToken();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('회원탈퇴가 완료되었습니다.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('회원탈퇴에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red.shade400,
+        ),
+      );
+    }
   }
 
   /// 섹션 헤더 (회색 라벨 텍스트)
@@ -205,17 +297,30 @@ class SettingsScreen extends StatelessWidget {
   /// 설정 항목 타일 위젯
   /// [icon]: 좌측 아이콘, [iconColor]: 아이콘 배경색
   /// [title]: 항목명, [subtitle]: 부가 설명 (선택)
-  /// [trailing]: 우측 추가 텍스트 (선택, 예: "v2.1.4")
+  /// [trailing]: 우측 추가 텍스트 (선택, 예: "1.0.0+1")
+  /// [showChevron]: false면 우측 화살표(>) 미표시 (앱 버전 정보 등)
+  /// [titleFontSize]: 지정 시 타이틀 폰트 크기 (미지정 시 15)
+  /// [titleMaxLines]: 지정 시 타이틀 한 줄 제한 (넘치면 말줄임)
+  /// [switchValue], [onSwitchChanged]: 둘 다 주면 우측에 Switch 표시 (탭 이동 대신 토글용)
   Widget _buildSettingsTile({
     required IconData icon,
     required Color iconColor,
     required String title,
     String? subtitle,
     String? trailing,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
+    bool showChevron = true,
+    double? titleFontSize,
+    int? titleMaxLines,
+    bool? switchValue,
+    ValueChanged<bool>? onSwitchChanged,
   }) {
+    final isSwitchTile = switchValue != null && onSwitchChanged != null;
+
     return InkWell(
-      onTap: onTap,
+      onTap: isSwitchTile
+          ? () => onSwitchChanged(!switchValue)
+          : (onTap ?? () {}),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
@@ -238,8 +343,12 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 15,
+                    maxLines: titleMaxLines,
+                    overflow: titleMaxLines != null
+                        ? TextOverflow.ellipsis
+                        : null,
+                    style: TextStyle(
+                      fontSize: titleFontSize ?? 15,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
                     ),
@@ -257,16 +366,28 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // 우측 추가 텍스트 (버전 정보 등)
-            if (trailing != null) ...[
-              Text(
-                trailing,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            // 우측: Switch(알림 등) 또는 텍스트 + 화살표
+            if (isSwitchTile) ...[
+              Switch(
+                value: switchValue,
+                onChanged: onSwitchChanged,
+                activeColor: const Color(0xFF2563EB),
               ),
-              const SizedBox(width: 4),
+            ] else ...[
+              if (trailing != null) ...[
+                Text(
+                  trailing,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+                if (showChevron) const SizedBox(width: 4),
+              ],
+              if (showChevron)
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade300,
+                  size: 22,
+                ),
             ],
-            // 우측 화살표 아이콘
-            Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 22),
           ],
         ),
       ),

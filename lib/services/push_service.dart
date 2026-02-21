@@ -11,6 +11,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'auth_service.dart';
 import 'stock_api_service.dart';
 import 'notification_store.dart';
+import 'notification_preferences.dart';
 import '../screens/open_chat_from_push_screen.dart';
 
 /// FCM 푸시 알림을 처리하는 서비스 (정적 메서드 위주)
@@ -53,21 +54,24 @@ class PushService {
     // Android 13+ 상단 알림 표시를 위한 런타임 권한 요청 (POST_NOTIFICATIONS)
     await _requestNotificationPermission();
 
-    // 앱이 종료된 상태에서 알림 탭으로 실행된 경우
+    // 앱이 종료된 상태에서 알림 탭으로 실행된 경우 (알림 on일 때만 저장·이동)
     final initialMessage = await messaging.getInitialMessage();
-    if (initialMessage != null) {
+    if (initialMessage != null &&
+        await NotificationPreferences.isEnabled()) {
       _addPushToStore(initialMessage);
       _handleMessageData(initialMessage.data);
     }
 
-    // 앱이 백그라운드에 있다가 알림 탭으로 복귀한 경우
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    // 앱이 백그라운드에 있다가 알림 탭으로 복귀한 경우 (알림 on일 때만 처리)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      if (!(await NotificationPreferences.isEnabled())) return;
       _addPushToStore(message);
       _handleMessageData(message.data);
     });
 
-    // 포그라운드에서 푸시 수신 시 알림 목록에 추가 + 로컬 알림 표시
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // 포그라운드에서 푸시 수신 시 — 알림 on일 때만 목록 추가 + 로컬 알림 표시
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      if (!(await NotificationPreferences.isEnabled())) return;
       print('📩 포그라운드 푸시: ${message.notification?.title} / ${message.notification?.body}');
       if (message.data.isNotEmpty) {
         print('   data: ${message.data}');
@@ -91,6 +95,7 @@ class PushService {
 
   /// 로컬 알림 플러그인 초기화 및 채널 생성, 알림 탭 콜백 등록
   static Future<void> _initLocalNotifications() async {
+    // 앱 아이콘과 동일한 ic_launcher 사용 (flutter_launcher_icons로 생성)
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
       requestAlertPermission: false,
