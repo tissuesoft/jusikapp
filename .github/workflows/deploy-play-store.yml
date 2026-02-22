@@ -36,9 +36,41 @@ jobs:
 
       - name: Decode keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
+          echo "$KEYSTORE_BASE64" | tr -d '\n' | base64 -d > "$RUNNER_TEMP/upload-keystore.raw"
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      # 반드시 JKS 형식으로 생성 (Tag number over 30 방지). PKCS12 원본을 복사하지 않음.
+      - name: Prepare JKS keystore
+        run: |
+          if [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD must be set in Repository Secrets."
+            exit 1
+          fi
+          RAW="$RUNNER_TEMP/upload-keystore.raw"
+          JKS="$RUNNER_TEMP/upload-keystore.jks"
+          if keytool -importkeystore -noprompt \
+            -srckeystore "$RAW" -srcstoretype PKCS12 \
+            -destkeystore "$JKS" -deststoretype JKS \
+            -srcstorepass "$STORE_PASSWORD" -deststorepass "$STORE_PASSWORD" \
+            -srcalias "$KEY_ALIAS" -destalias "$KEY_ALIAS" \
+            -srckeypass "$KEY_PASSWORD" -destkeypass "$KEY_PASSWORD"; then
+            echo "Converted PKCS12 to JKS"
+          elif keytool -importkeystore -noprompt \
+            -srckeystore "$RAW" -srcstoretype JKS \
+            -destkeystore "$JKS" -deststoretype JKS \
+            -srcstorepass "$STORE_PASSWORD" -deststorepass "$STORE_PASSWORD" \
+            -srcalias "$KEY_ALIAS" -destalias "$KEY_ALIAS" \
+            -srckeypass "$KEY_PASSWORD" -destkeypass "$KEY_PASSWORD"; then
+            echo "Re-saved JKS to JKS"
+          else
+            echo "::error::Keystore conversion failed. Check STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD and that KEYSTORE_BASE64 is correct."
+            exit 1
+          fi
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Install dependencies
         run: flutter pub get
