@@ -113,11 +113,11 @@ class PortfolioCard extends StatelessWidget {
     });
   }
 
-  /// 카드 상단 영역: 종목명/코드(좌측) + 수익률/손익금액(우측)
+  /// 카드 상단 영역: 종목명/코드(좌측) + 내 자산대비 지표(우측) — 세로 가운데 정렬
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 좌측: 종목명, 종목 코드
         Padding(
@@ -127,7 +127,10 @@ class PortfolioCard extends StatelessWidget {
             children: [
               Text(
                 item.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -137,31 +140,61 @@ class PortfolioCard extends StatelessWidget {
             ],
           ),
         ),
-        // 우측: "내 자산 대비" — 수익률(%)·손익 금액(원) — change_percent/change_amount(API 값 우선)
+        // 우측: "내 자산대비" — 위: 두 % | 아래: 두 금액 (2×2 형식, 왼쪽 정렬)
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '내 자산 대비',
+              '내 자산대비',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
-            const SizedBox(height: 2),
-            Text(
-              '${item.isPositive ? '+' : ''}${item.displayChangePercent.toStringAsFixed(1)}%',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.getStockColor(item.isPositive),
-              ),
+            const SizedBox(height: 6),
+            // 첫째 줄: +0.1%   +9504900.0%
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${item.isPositive ? '+' : ''}${item.displayChangePercent.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.getStockColor(item.isPositive),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  '${item.isPositive ? '+' : ''}${item.displayProfitRate.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.getStockColor(item.isPositive),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              '${item.isPositive ? '+' : ''}${formatPrice(item.displayChangeAmount, '₩')}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.getStockColor(item.isPositive),
-              ),
+            const SizedBox(height: 4),
+            // 둘째 줄: +₩100   +₩190,098
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${item.isPositive ? '+' : ''}${formatPrice(item.displayChangeAmount, '₩')}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.getStockColor(item.isPositive),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  '${item.isPositive ? '+' : ''}${formatPrice(item.displayProfit, '₩')}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.getStockColor(item.isPositive),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
