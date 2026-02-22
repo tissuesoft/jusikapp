@@ -1,6 +1,7 @@
 // 종목 추가 하단 시트(Bottom Sheet) 위젯 파일
 // "종목 추가" 버튼 탭 시 하단에서 올라오는 입력 폼을 제공한다
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/portfolio.dart';
@@ -43,6 +44,9 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
   String? _selectedStockTicker; // 선택된 종목 코드
   double? _selectedCurrentPrice; // 선택된 종목의 현재가
   bool _showSearchResults = false; // 검색 결과 표시 여부
+  bool _isSearching = false; // 종목 검색 API 호출 중
+  List<Map<String, String>>? _apiSearchResults; // API 검색 결과 (null이면 mock 사용)
+  Timer? _searchDebounce; // 검색 입력 디바운스
   bool _isSaving = false; // 저장 중 상태
   String? _searchError; // 종목명 미입력 시 필드 하단 에러 문구
   String? _priceError; // 매수가 0원일 때 필드 하단 에러 문구
@@ -69,10 +73,40 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _priceController.dispose();
     _quantityController.dispose();
     super.dispose();
+  }
+
+  /// API 종목 검색 호출 (디바운스 후 실행)
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    setState(() {
+      _searchError = null;
+      _showSearchResults = value.isNotEmpty;
+      if (_selectedStockName != null && value != _selectedStockName) {
+        _selectedStockName = null;
+        _selectedStockTicker = null;
+        _selectedCurrentPrice = null;
+      }
+      if (value.isEmpty) {
+        _apiSearchResults = null;
+        _isSearching = false;
+      }
+    });
+    if (value.isEmpty) return;
+
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () async {
+      setState(() => _isSearching = true);
+      final results = await _apiService.searchStocks(value);
+      if (!mounted) return;
+      setState(() {
+        _apiSearchResults = results;
+        _isSearching = false;
+      });
+    });
   }
 
   /// 매수가 입력값을 double로 파싱
@@ -129,6 +163,12 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
     return results;
   }
 
+  /// 표시할 검색 결과 — API 결과 우선, 없으면 mock 필터 결과
+  List<Map<String, String>> get _displaySearchResults {
+    if (_apiSearchResults != null) return _apiSearchResults!;
+    return _filteredStocks;
+  }
+
   /// 검색 결과에서 종목을 선택했을 때 호출
   void _selectStock(Map<String, String> stock) {
     setState(() {
@@ -137,6 +177,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
       _selectedCurrentPrice = double.tryParse(stock['price'] ?? '0');
       _searchController.text = stock['name']!;
       _showSearchResults = false;
+      _apiSearchResults = null;
     });
   }
 
@@ -303,7 +344,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
               _buildSearchField(),
 
               // 검색 결과 드롭다운
-              if (_showSearchResults && _filteredStocks.isNotEmpty)
+              if (_showSearchResults && (_isSearching || _displaySearchResults.isNotEmpty))
                 _buildSearchResults(),
 
               const SizedBox(height: 24),
@@ -372,17 +413,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           ),
           child: TextField(
             controller: _searchController,
-            onChanged: (value) {
-              setState(() {
-                _searchError = null; // 입력 시 에러 제거 (매수가/수량 필드와 동일)
-                _showSearchResults = value.isNotEmpty;
-                if (_selectedStockName != null && value != _selectedStockName) {
-                  _selectedStockName = null;
-                  _selectedStockTicker = null;
-                  _selectedCurrentPrice = null;
-                }
-              });
-            },
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: '종목명 또는 코드 입력',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
@@ -405,9 +436,9 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
     );
   }
 
-  /// 종목 검색 결과 드롭다운 목록
+  /// 종목 검색 결과 드롭다운 목록 (API 결과 또는 mock, 로딩 시 인디케이터 표시)
   Widget _buildSearchResults() {
-    final results = _filteredStocks;
+    final results = _displaySearchResults;
     return Container(
       margin: const EdgeInsets.only(top: 4),
       constraints: const BoxConstraints(maxHeight: 180),
@@ -423,32 +454,37 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           ),
         ],
       ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        itemCount: results.length,
-        separatorBuilder: (_, _) =>
-            Divider(height: 1, color: Colors.grey.shade100),
-        itemBuilder: (context, index) {
-          final stock = results[index];
-          return ListTile(
-            dense: true,
-            title: Text(
-              stock['name']!,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      child: _isSearching
+          ? const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : ListView.separated(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: results.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
+              itemBuilder: (context, index) {
+                final stock = results[index];
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    stock['name']!,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    stock['ticker']!,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  trailing: Text(
+                    formatPrice(double.tryParse(stock['price'] ?? '0') ?? 0, stock['currency'] ?? '₩'),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                  onTap: () => _selectStock(stock),
+                );
+              },
             ),
-            subtitle: Text(
-              stock['ticker']!,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-            trailing: Text(
-              formatPrice(double.parse(stock['price']!), stock['currency']!),
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-            ),
-            onTap: () => _selectStock(stock),
-          );
-        },
-      ),
     );
   }
 
