@@ -137,10 +137,15 @@ class PortfolioCard extends StatelessWidget {
             ],
           ),
         ),
-        // 우측: 수익률(%) — change_percent, 손익 금액(원) — change_amount (API 값 우선)
+        // 우측: "내 자산 대비" — 수익률(%)·손익 금액(원) — change_percent/change_amount(API 값 우선)
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            Text(
+              '내 자산 대비',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 2),
             Text(
               '${item.isPositive ? '+' : ''}${item.displayChangePercent.toStringAsFixed(1)}%',
               style: TextStyle(
@@ -192,12 +197,35 @@ class PortfolioCard extends StatelessWidget {
             ),
           ],
         ),
+        // 세 번째 줄: 어제 대비 ±원, ±% (전일 종가가 있을 때만 표시)
+        if (item.hasPreviousClose) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  '어제 대비',
+                  '${item.isDayPositive ? '+' : ''}${formatPrice(item.dayChangeAmount, '₩')}',
+                  valueColor: AppColors.getStockColor(item.isDayPositive),
+                ),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  '어제 대비(%)',
+                  '${item.isDayPositive ? '+' : ''}${item.dayChangePercent.toStringAsFixed(1)}%',
+                  valueColor: AppColors.getStockColor(item.isDayPositive),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 
   /// 개별 정보 항목: 라벨(회색) + 값(볼드) 세로 배치
-  Widget _buildInfoItem(String label, String value) {
+  /// [valueColor] 지정 시 값 텍스트 색상(상승 빨강/하락 파랑 등)
+  Widget _buildInfoItem(String label, String value, {Color? valueColor}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,7 +236,11 @@ class PortfolioCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? Colors.black,
+          ),
         ),
       ],
     );
