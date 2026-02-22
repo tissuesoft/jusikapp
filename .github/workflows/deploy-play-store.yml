@@ -111,13 +111,14 @@ jobs:
           name: app-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
 
-  # (선택) Play Store 내부 테스트 트랙에 배포
-  # 수동 실행 시에만 동작. PLAY_STORE_SERVICE_ACCOUNT_JSON 시크릿 필요.
+  # Play Store 내부 테스트 트랙에 자동 업로드
+  # main 푸시 또는 수동 실행 시 빌드 성공 후 실행. PLAY_STORE_SERVICE_ACCOUNT_JSON 시크릿 필요.
   deploy:
     name: Deploy to Play Store (Internal)
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'workflow_dispatch'
+    # main 푸시 또는 수동 실행 시 모두 배포 (시크릿이 없으면 이 job만 실패하고 AAB 아티팩트는 유지됨)
+    if: always() && needs.build.result == 'success'
     steps:
       - name: Download AAB
         uses: actions/download-artifact@v4

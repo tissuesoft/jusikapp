@@ -49,9 +49,9 @@ keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -vali
 
 Artifacts는 Actions 실행 결과 페이지에서 **Download**로 받을 수 있습니다. 이 AAB를 [Google Play Console](https://play.google.com/console) → 앱 → **출시** → **프로덕션/내부 테스트 등**에서 수동 업로드할 수 있습니다.
 
-## 4. (선택) Play Store 자동 배포
+## 4. Play Store 자동 업로드 (AAB → 내부 테스트)
 
-수동 업로드 대신, **수동 실행(workflow_dispatch)** 시에만 Play Store **내부 테스트** 트랙으로 자동 배포하려면 아래를 설정합니다.
+AAB를 수동 업로드하지 않고, **main 푸시 또는 수동 실행** 시 Play Store **내부 테스트** 트랙으로 자동 업로드하려면 아래를 설정합니다. 시크릿을 넣지 않으면 빌드·아티팩트만 되고, 배포 job만 건너뛰거나 실패합니다.
 
 ### 4.1 Google Play Console API 사용 설정
 
@@ -64,7 +64,7 @@ Artifacts는 Actions 실행 결과 페이지에서 **Download**로 받을 수 �
 - **이름**: `PLAY_STORE_SERVICE_ACCOUNT_JSON`
 - **값**: 위에서 받은 JSON 키 파일 **전체 내용**을 복사해 붙여넣습니다.
 
-이후 **Actions** → **Build and Deploy to Play Store** → **Run workflow**로 수동 실행하면, 빌드 후 **Deploy to Play Store (Internal)** 단계가 실행되어 내부 테스트 트랙에 배포됩니다.
+이후 **main 브랜치에 푸시**하거나 **Actions** → **Build and Deploy to Play Store** → **Run workflow**로 수동 실행하면, 빌드 성공 시 **Deploy to Play Store (Internal)** 단계가 자동으로 실행되어 내부 테스트 트랙에 AAB가 업로드됩니다.
 
 ## 5. 버전 관리
 
