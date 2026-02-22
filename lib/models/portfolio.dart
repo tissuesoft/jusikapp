@@ -79,6 +79,12 @@ class PortfolioItem {
   final double? changePercent;
   /// 전일 종가 — 어제 대비 ±원, ±% 계산용 (서버에서 optional)
   final double? previousClose;
+  /// 서버에서 내려준 총 평가 금액 (current_value) — 없으면 currentPrice × quantity 사용
+  final double? currentValue;
+  /// 서버에서 내려준 평가 손익 (profit) — 없으면 profitLoss 사용
+  final double? profit;
+  /// 서버에서 내려준 수익률(%, profit_rate) — 없으면 returnPercent 사용
+  final double? profitRate;
 
   const PortfolioItem({
     required this.name,
@@ -91,12 +97,22 @@ class PortfolioItem {
     this.changeAmount,
     this.changePercent,
     this.previousClose,
+    this.currentValue,
+    this.profit,
+    this.profitRate,
   });
+
+  /// JSON에서 숫자 필드 읽기 (snake_case/camelCase 지원, 없으면 null)
+  static double? _readNum(Map<String, dynamic> json, String key) {
+    final v = json[key];
+    if (v == null) return null;
+    return (v as num).toDouble();
+  }
 
   /// JSON 데이터를 PortfolioItem 객체로 변환하는 팩토리 생성자
   /// 서버 응답(Map)을 Dart 객체로 파싱할 때 사용한다
   /// [orderIndex] 서버에 order 필드가 없을 때 사용할 등록 순서(배열 인덱스)
-  /// 예시 JSON: { "stock_name": "삼성전자", "avg_price": 160000, "current_price": 160000, "quantity": 10 }
+  /// 예시 JSON: { "stock_name": "삼성전자", "avg_price": 160000, "current_price": 28700, "current_value": 574000, "quantity": 10 }
   factory PortfolioItem.fromJson(Map<String, dynamic> json, {int? orderIndex}) {
     final orderFromJson = (json['order'] as num?)?.toInt() ??
         (json['display_order'] as num?)?.toInt();
@@ -104,16 +120,18 @@ class PortfolioItem {
       name: json['stock_name'] as String,                        // 종목명
       ticker: (json['stock_code'] as String?) ?? '',             // 종목코드 (없으면 빈 문자열)
       buyPrice: (json['avg_price'] as num).toDouble(),           // 매수가
-      // current_price가 있으면 사용, 없으면 매수가를 현재가로 설정
-      currentPrice: json['current_price'] != null
-          ? (json['current_price'] as num).toDouble()
-          : (json['avg_price'] as num).toDouble(),
+      // current_price (또는 currentPrice)가 있으면 사용, 없으면 매수가를 현재가로 설정
+      currentPrice: _readNum(json, 'current_price') ?? _readNum(json, 'currentPrice') ?? (json['avg_price'] as num).toDouble(),
       quantity: (json['quantity'] as num).toInt(),               // 보유 수량
       order: orderFromJson ?? orderIndex ?? 0,                    // 등록 순서
       portfolioId: (json['portfolio_id'] as num?)?.toInt(),     // 채팅 기록 조회용 ID
       changeAmount: (json['change_amount'] as num?)?.toDouble(), // 변동 금액(원)
       changePercent: (json['change_percent'] as num?)?.toDouble(), // 변동률(수익률 %)
       previousClose: (json['previous_close'] as num?)?.toDouble(), // 전일 종가 (어제 대비용)
+      // current_value (또는 currentValue) — 카드 영역에 표시할 총 평가 금액
+      currentValue: _readNum(json, 'current_value') ?? _readNum(json, 'currentValue'),
+      profit: _readNum(json, 'profit'),
+      profitRate: _readNum(json, 'profit_rate') ?? _readNum(json, 'profitRate'),
     );
   }
 
@@ -123,11 +141,17 @@ class PortfolioItem {
   /// 표시용 변동률(수익률 %) — 서버 값 우선, 없으면 계산
   double get displayChangePercent => changePercent ?? returnPercent;
 
+  /// 표시용 손익 금액 — 서버 profit 우선, 없으면 profitLoss
+  double get displayProfit => profit ?? profitLoss;
+
+  /// 표시용 수익률(%) — 서버 profit_rate 우선, 없으면 returnPercent
+  double get displayProfitRate => profitRate ?? returnPercent;
+
   /// 총 매입 금액 = 매수가 × 보유 수량
   double get totalBuyAmount => buyPrice * quantity;
 
-  /// 총 평가 금액 = 현재가 × 보유 수량
-  double get totalCurrentAmount => currentPrice * quantity;
+  /// 총 평가 금액 — 서버 current_value 우선, 없으면 현재가 × 보유 수량
+  double get totalCurrentAmount => currentValue ?? (currentPrice * quantity);
 
   /// 평가 손익 = 총 평가 금액 - 총 매입 금액
   double get profitLoss => totalCurrentAmount - totalBuyAmount;
