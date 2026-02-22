@@ -7,12 +7,15 @@ GitHub Actions를 사용해 Android App Bundle(AAB)을 빌드하고, 선택적�
 로컬에서 다음 명령으로 업로드용 키스토어를 생성합니다.
 
 ```bash
-keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storetype JKS
 ```
 
 - `upload-keystore.jks`: 키스토어 파일 (절대 Git에 커밋하지 말 것)
 - `upload`: 키 별칭 (KEY_ALIAS)
+- `-storetype JKS`: Java 9+에서는 기본이 PKCS12이므로, CI 호환을 위해 JKS로 명시 권장
 - 입력한 비밀번호는 GitHub Secrets에 등록합니다.
+
+이미 PKCS12로 만든 키스토어라도 CI에서 자동으로 JKS로 변환하므로 그대로 사용 가능합니다.
 
 ## 2. GitHub Secrets 등록
 
