@@ -19,7 +19,10 @@ keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -vali
 
 ## 2. GitHub Secrets 등록
 
-저장소 **Settings → Secrets and variables → Actions**에서 다음 시크릿을 추가합니다.
+저장소 **Settings → Secrets and variables → Actions**에서 다음 시크릿을 **Repository secrets**에 추가합니다.
+
+- ⚠️ **Environment secrets**가 아닌 **Repository secrets**에 넣어야 워크플로에서 사용됩니다.
+- Environment 시크릿을 쓰려면 워크플로의 `build` job에 `environment: 환경이름`을 지정하고, 해당 환경에 시크릿을 등록해야 합니다.
 
 | 시크릿 이름 | 설명 |
 |------------|------|
@@ -34,7 +37,8 @@ keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -vali
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("upload-keystore.jks")) | Set-Clipboard
 ```
 
-생성된 문자열을 GitHub **KEYSTORE_BASE64** 시크릿 값에 붙여넣습니다.
+- 생성된 문자열을 GitHub **KEYSTORE_BASE64** 시크릿 값에 **한 줄로** 붙여넣습니다 (줄바꿈 없이).
+- CI에서 `base64: invalid input` 이 나오면: 시크릿을 삭제한 뒤, 위 명령으로 다시 생성하고 **전체를 한 번에** 복사해 새로 등록하세요.
 
 ## 3. 워크플로우 동작
 

@@ -17,6 +17,8 @@ jobs:
   build:
     name: Build App Bundle
     runs-on: ubuntu-latest
+    # Environment 시크릿을 쓰는 경우: 아래 값을 Settings → Environments 에서 만든 환경 이름과 맞추세요 (예: KEYSTORE_BASE64)
+    environment: KEYSTORE_BASE64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,7 +38,25 @@ jobs:
 
       - name: Decode keystore
         run: |
-          echo "$KEYSTORE_BASE64" | tr -d '\n' | base64 -d > "$RUNNER_TEMP/upload-keystore.raw"
+          # 줄바꿈·공백 제거 후 디코딩 (KEYSTORE_BASE64는 한 줄로 붙여넣기)
+          B64="$(echo -n "$KEYSTORE_BASE64" | tr -d '\n\r \t')"
+          if [ -z "$B64" ]; then
+            echo "::error::KEYSTORE_BASE64가 비어 있습니다. Environment/Repository secrets를 확인하세요."
+            exit 1
+          fi
+          # base64 길이를 4의 배수로 맞춤 (패딩)
+          PAD=$(( (4 - ${#B64} % 4) % 4 ))
+          [ "$PAD" -gt 0 ] && B64="${B64}$(printf '=%.0s' $(seq 1 $PAD))"
+          echo "$B64" | base64 -d > "$RUNNER_TEMP/upload-keystore.raw" || {
+            echo "::error::base64 디코딩 실패. KEYSTORE_BASE64를 다시 등록하세요 (한 줄, 줄바꿈 없이)."
+            echo "::error::PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes('upload-keystore.jks')) 결과 전체를 복사하세요."
+            exit 1
+          }
+          if [ ! -s "$RUNNER_TEMP/upload-keystore.raw" ]; then
+            echo "::error::디코딩된 키스토어 파일이 비어 있습니다. KEYSTORE_BASE64 값을 확인하세요."
+            exit 1
+          fi
+          echo "Keystore decoded successfully ($(wc -c < "$RUNNER_TEMP/upload-keystore.raw") bytes)"
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
@@ -44,7 +64,9 @@ jobs:
       - name: Prepare JKS keystore
         run: |
           if [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::error::STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD must be set in Repository Secrets."
+            echo "::error::STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD가 비어 있습니다."
+            echo "::error::Settings → Secrets and variables → Actions → Repository secrets 에서 위 3개를 등록하세요."
+            echo "::error::또는 Environment 시크릿을 쓰는 경우 워크플로에서 environment: 환경이름 을 지정하세요."
             exit 1
           fi
           RAW="$RUNNER_TEMP/upload-keystore.raw"
