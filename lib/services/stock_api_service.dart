@@ -265,6 +265,33 @@ class StockApiService {
     }
   }
 
+  /// 회원 탈퇴 요청 — 서버에서 해당 계정을 삭제 처리
+  /// DELETE /auth/withdraw — Header: Authorization: Bearer <JWT>
+  /// 반환: 성공 시 true, 실패 시 false
+  Future<bool> withdrawAccount() async {
+    try {
+      final url = '$_baseUrl/auth/withdraw';
+      print('📡 회원 탈퇴 요청: $url');
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: _buildHeaders(),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ 회원 탈퇴 요청 성공');
+        return true;
+      } else {
+        print('❌ 회원 탈퇴 실패: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('❌ 회원 탈퇴 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return false;
+    }
+  }
+
   /// 로그인한 유저의 기기로 테스트 푸시 1건 발송
   /// POST /push/test — Header: Authorization: Bearer <JWT>
   /// 반환: 성공 시 true

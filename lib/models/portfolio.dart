@@ -77,6 +77,8 @@ class PortfolioItem {
   final double? changeAmount;
   /// 서버에서 내려준 변동률(수익률, %) — 없으면 returnPercent 사용
   final double? changePercent;
+  /// 전일 종가 — 어제 대비 ±원, ±% 계산용 (서버에서 optional)
+  final double? previousClose;
 
   const PortfolioItem({
     required this.name,
@@ -88,6 +90,7 @@ class PortfolioItem {
     this.portfolioId,
     this.changeAmount,
     this.changePercent,
+    this.previousClose,
   });
 
   /// JSON 데이터를 PortfolioItem 객체로 변환하는 팩토리 생성자
@@ -110,6 +113,7 @@ class PortfolioItem {
       portfolioId: (json['portfolio_id'] as num?)?.toInt(),     // 채팅 기록 조회용 ID
       changeAmount: (json['change_amount'] as num?)?.toDouble(), // 변동 금액(원)
       changePercent: (json['change_percent'] as num?)?.toDouble(), // 변동률(수익률 %)
+      previousClose: (json['previous_close'] as num?)?.toDouble(), // 전일 종가 (어제 대비용)
     );
   }
 
@@ -133,6 +137,21 @@ class PortfolioItem {
 
   /// 수익 여부 (표시용 변동률 기준, 0 이상이면 true)
   bool get isPositive => displayChangePercent >= 0;
+
+  /// 어제 대비 변동 금액 (1주 기준) — 전일 종가가 있을 때만 유효
+  double get dayChangeAmount =>
+      previousClose != null ? currentPrice - previousClose! : 0.0;
+
+  /// 어제 대비 변동률(%) — 전일 종가가 있을 때만 유효
+  double get dayChangePercent => previousClose != null && previousClose! != 0
+      ? (dayChangeAmount / previousClose!) * 100
+      : 0.0;
+
+  /// 어제 대비 상승 여부 (표시용)
+  bool get isDayPositive => dayChangeAmount >= 0;
+
+  /// 전일 종가 존재 여부 (어제 대비 표시 가능 여부)
+  bool get hasPreviousClose => previousClose != null;
 }
 
 /// GET /portfolio/{portfolioId}/messages 응답의 메시지 한 건

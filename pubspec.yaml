@@ -42,6 +42,7 @@ dependencies:
   firebase_core: ^3.8.1
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
+  package_info_plus: ^8.1.2
 
 dev_dependencies:
   flutter_test:
@@ -99,8 +100,9 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# 앱 런처 아이콘 설정 (dart run flutter_launcher_icons 로 생성)
-# 소스: assets/icon/app_icon.png (권장 1024x1024)
+# 앱 런처 아이콘 설정 — 설치 아이콘 + 푸시 알림 아이콘(Android) 모두 동일 소스 사용
+# 1) assets/icon/app_icon.png 를 원하는 아이콘 이미지(권장 1024x1024)로 교체
+# 2) 터미널에서 실행: flutter pub get && dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true
