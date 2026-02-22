@@ -31,11 +31,27 @@ android {
         versionName = flutter.versionName
     }
 
+    // CI(GitHub Actions)에서 환경변수로 키스토어 경로·비밀번호 전달 시 release 서명 사용
+    val releaseKeystorePath = System.getenv("KEYSTORE_PATH")
+    if (releaseKeystorePath != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystorePath != null) {
+                signingConfigs.getByName("release")
+            } else {
+                // 로컬: release도 debug 키로 서명 (flutter run --release용)
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
