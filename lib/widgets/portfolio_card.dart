@@ -149,14 +149,14 @@ class PortfolioCard extends StatelessWidget {
             ],
           ),
         ),
-        // 우측: 전일대비 +₩4,000(4.5%) / 수익률 +₩740,000(18.5%)
+        // 우측: 전일대비·수익률 — 라벨/값 스타일을 현재가·평가 금액(_buildInfoItem)과 동일하게
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '전일대비',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 4),
             Text(
@@ -167,7 +167,7 @@ class PortfolioCard extends StatelessWidget {
               ),
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: item.hasDayChangeData
                     ? AppColors.getStockColor(item.isDayPositive)
                     : Colors.grey.shade500,
@@ -176,7 +176,7 @@ class PortfolioCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               '수익률',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 4),
             Text(
@@ -187,7 +187,7 @@ class PortfolioCard extends StatelessWidget {
               ),
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: AppColors.getStockColor(item.isPositive),
               ),
             ),
