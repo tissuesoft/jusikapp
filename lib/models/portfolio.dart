@@ -125,8 +125,8 @@ class PortfolioItem {
       quantity: (json['quantity'] as num).toInt(),               // 보유 수량
       order: orderFromJson ?? orderIndex ?? 0,                    // 등록 순서
       portfolioId: (json['portfolio_id'] as num?)?.toInt(),     // 채팅 기록 조회용 ID
-      changeAmount: (json['change_amount'] as num?)?.toDouble(), // 변동 금액(원)
-      changePercent: (json['change_percent'] as num?)?.toDouble(), // 변동률(수익률 %)
+      changeAmount: (json['change_amount'] as num?)?.toDouble(), // 전일대비 변동 금액(원)
+      changePercent: (json['change_percent'] as num?)?.toDouble(), // 전일대비 변동률(%)
       previousClose: (json['previous_close'] as num?)?.toDouble(), // 전일 종가 (어제 대비용)
       // current_value (또는 currentValue) — 카드 영역에 표시할 총 평가 금액
       currentValue: _readNum(json, 'current_value') ?? _readNum(json, 'currentValue'),
@@ -159,8 +159,8 @@ class PortfolioItem {
   /// 수익률(%) = (평가 손익 / 총 매입 금액) × 100
   double get returnPercent => (profitLoss / totalBuyAmount) * 100;
 
-  /// 수익 여부 (표시용 변동률 기준, 0 이상이면 true)
-  bool get isPositive => displayChangePercent >= 0;
+  /// 수익 여부 (표시용 — 수익률/손익 기준, 0 이상이면 true)
+  bool get isPositive => displayProfitRate >= 0;
 
   /// 어제 대비 변동 금액 (1주 기준) — 전일 종가가 있을 때만 유효
   double get dayChangeAmount =>
@@ -171,11 +171,21 @@ class PortfolioItem {
       ? (dayChangeAmount / previousClose!) * 100
       : 0.0;
 
-  /// 어제 대비 상승 여부 (표시용)
-  bool get isDayPositive => dayChangeAmount >= 0;
+  /// 전일대비 표시용 금액 — API change_amount 우선, 없으면 dayChangeAmount
+  double get displayDayChangeAmount => changeAmount ?? dayChangeAmount;
+
+  /// 전일대비 표시용 변동률(%) — API change_percent 우선, 없으면 dayChangePercent
+  double get displayDayChangePercent => changePercent ?? dayChangePercent;
+
+  /// 어제 대비 상승 여부 (표시용, displayDayChangeAmount 기준)
+  bool get isDayPositive => displayDayChangeAmount >= 0;
 
   /// 전일 종가 존재 여부 (어제 대비 표시 가능 여부)
   bool get hasPreviousClose => previousClose != null;
+
+  /// 전일대비 표시 여부 (API 데이터 또는 전일 종가 있으면 표시)
+  bool get hasDayChangeData =>
+      changeAmount != null || changePercent != null || hasPreviousClose;
 }
 
 /// GET /portfolio/{portfolioId}/messages 응답의 메시지 한 건
