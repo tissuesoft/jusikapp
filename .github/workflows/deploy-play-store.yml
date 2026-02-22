@@ -10,7 +10,8 @@ on:
   workflow_dispatch: # 수동 실행
 
 env:
-  FLUTTER_VERSION: "3.24.0"
+  # pubspec.yaml의 sdk: ^3.10.8 요구에 맞는 Flutter 버전 (Dart 3.10.8+)
+  FLUTTER_VERSION: "3.41.2"
 
 jobs:
   build:
