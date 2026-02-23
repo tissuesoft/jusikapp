@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Play Store 업로드 키스토어 (절대 커밋 금지)
+upload-keystore.jks
+upload-keystore.txt
+*.jks
+nul

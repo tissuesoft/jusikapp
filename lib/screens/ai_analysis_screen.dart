@@ -229,9 +229,9 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 수익률 표시용 텍스트
+    // 수익률 표시용 텍스트 (매수 대비 수익률)
     final returnText =
-        '${widget.item.isPositive ? '+' : ''}${widget.item.displayChangePercent.toStringAsFixed(1)}%';
+        '${widget.item.isPositive ? '+' : ''}${widget.item.displayProfitRate.toStringAsFixed(1)}%';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),

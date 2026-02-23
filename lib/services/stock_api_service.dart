@@ -388,4 +388,62 @@ class StockApiService {
       return null;
     }
   }
+
+  /// 종목 검색 API — 검색어로 실제 종목명·가격 조회
+  /// GET /stocks/search?q=검색어
+  /// 반환: [{ name, ticker, price, currency }, ...] (표시용 Map 리스트, 실패 시 빈 리스트)
+  Future<List<Map<String, String>>> searchStocks(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+
+    try {
+      final uri = Uri.parse('$_baseUrl/stocks/search').replace(
+        queryParameters: {'q': q},
+      );
+      final response = await http.get(
+        uri,
+        headers: _buildHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        print('❌ 종목 검색 실패: ${response.statusCode}');
+        return [];
+      }
+
+      final data = json.decode(response.body);
+      final list = data is List
+          ? data
+          : (data is Map && data['stocks'] != null)
+              ? (data['stocks'] as List<dynamic>)
+              : <dynamic>[];
+
+      final results = <Map<String, String>>[];
+      for (final e in list) {
+        final item = e is Map ? e as Map<String, dynamic> : null;
+        if (item == null) continue;
+
+        final name = (item['stock_name'] ?? item['name'] ?? item['stockName'] ?? '').toString();
+        final ticker = (item['stock_code'] ?? item['ticker'] ?? item['stockCode'] ?? '').toString();
+        if (name.isEmpty) continue;
+
+        final priceNum = item['current_price'] ?? item['currentPrice'] ?? item['price'];
+        final price = priceNum != null ? (priceNum as num).toDouble() : 0.0;
+        final currency = (item['currency'] ?? 'KRW').toString();
+        final currencySymbol = currency.toUpperCase() == 'USD' ? '\$' : '₩';
+
+        results.add({
+          'name': name,
+          'ticker': ticker,
+          'price': price.toString(),
+          'currency': currencySymbol,
+        });
+      }
+      print('✅ 종목 검색 성공: $q → ${results.length}건');
+      return results;
+    } catch (e, st) {
+      print('❌ 종목 검색 API 오류: $e');
+      print(st);
+      return [];
+    }
+  }
 }

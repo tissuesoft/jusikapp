@@ -39,13 +39,22 @@ class PortfolioCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 상단: 종목명/코드 + 수익률/손익금액
+                // 상단: 종목명/코드(좌) + 전일대비·수익률(우), 세로 가운데 정렬
                 _buildHeader(),
-                const SizedBox(height: 20),
-                // 중간: 매수가, 현재가, 보유 수량, 평가 금액 그리드
-                _buildInfoGrid(),
+                // 구분선
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Divider(height: 1, color: Colors.grey.shade200),
+                ),
                 const SizedBox(height: 16),
-                // 하단: AI 분석 보기 버튼
+                // 중간: 매수가/현재가, 보유 수량/평가 금액 2열
+                _buildInfoGrid(),
+                // 구분선
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Divider(height: 1, color: Colors.grey.shade200),
+                ),
+                // 하단: AI 분석 보기
                 _buildAiAnalysisButton(),
               ],
             ),
@@ -113,21 +122,24 @@ class PortfolioCard extends StatelessWidget {
     });
   }
 
-  /// 카드 상단 영역: 종목명/코드(좌측) + 수익률/손익금액(우측)
+  /// 카드 상단: 종목명/코드(좌) + 전일대비·수익률(우), 형식 "+₩금액(퍼센트%)", 세로 가운데 정렬
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 좌측: 종목명, 종목 코드
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 item.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -137,24 +149,45 @@ class PortfolioCard extends StatelessWidget {
             ],
           ),
         ),
-        // 우측: 수익률(%) — change_percent, 손익 금액(원) — change_amount (API 값 우선)
+        // 우측: 전일대비·수익률 — 라벨/값 스타일을 현재가·평가 금액(_buildInfoItem)과 동일하게
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${item.isPositive ? '+' : ''}${item.displayChangePercent.toStringAsFixed(1)}%',
+              '전일대비',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatAmountWithPercent(
+                item.displayDayChangeAmount,
+                item.displayDayChangePercent,
+                item.isDayPositive,
+              ),
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.getStockColor(item.isPositive),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: item.hasDayChangeData
+                    ? AppColors.getStockColor(item.isDayPositive)
+                    : Colors.grey.shade500,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 12),
             Text(
-              '${item.isPositive ? '+' : ''}${formatPrice(item.displayChangeAmount, '₩')}',
+              '수익률',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatAmountWithPercent(
+                item.displayProfit,
+                item.displayProfitRate,
+                item.isPositive,
+              ),
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
                 color: AppColors.getStockColor(item.isPositive),
               ),
             ),
@@ -162,6 +195,12 @@ class PortfolioCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// "+₩4,000(4.5%)" 형식 문자열 생성 (전일대비·수익률 표시용)
+  String _formatAmountWithPercent(double amount, double percent, bool isPositive) {
+    final sign = isPositive ? '+' : '';
+    return '$sign${formatPrice(amount, '₩')}(${percent.toStringAsFixed(1)}%)';
   }
 
   /// 중간 정보 그리드: 매수가, 현재가, 보유 수량, 평가 금액을 2×2 그리드로 표시
@@ -192,12 +231,35 @@ class PortfolioCard extends StatelessWidget {
             ),
           ],
         ),
+        // 세 번째 줄: 어제 대비 ±원, ±% (전일 종가가 있을 때만 표시)
+        if (item.hasPreviousClose) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  '어제 대비',
+                  '${item.isDayPositive ? '+' : ''}${formatPrice(item.dayChangeAmount, '₩')}',
+                  valueColor: AppColors.getStockColor(item.isDayPositive),
+                ),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  '어제 대비(%)',
+                  '${item.isDayPositive ? '+' : ''}${item.dayChangePercent.toStringAsFixed(1)}%',
+                  valueColor: AppColors.getStockColor(item.isDayPositive),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 
   /// 개별 정보 항목: 라벨(회색) + 값(볼드) 세로 배치
-  Widget _buildInfoItem(String label, String value) {
+  /// [valueColor] 지정 시 값 텍스트 색상(상승 빨강/하락 파랑 등)
+  Widget _buildInfoItem(String label, String value, {Color? valueColor}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,21 +270,22 @@ class PortfolioCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? Colors.black,
+          ),
         ),
       ],
     );
   }
 
-  /// 하단 AI 분석 보기 버튼 영역
+  /// 하단 AI 분석 보기 버튼 영역 (상단 구분선은 상위에서 Divider로 처리)
   Widget _buildAiAnalysisButton() {
     return InkWell(
       onTap: onAiAnalysisTap,
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.only(top: 12),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.shade100)),
-        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -237,3 +300,4 @@ class PortfolioCard extends StatelessWidget {
     );
   }
 }
+

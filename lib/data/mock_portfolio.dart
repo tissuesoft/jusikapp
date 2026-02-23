@@ -11,6 +11,7 @@ final List<PortfolioItem> mockPortfolio = [
     buyPrice: 80000,
     currentPrice: 94800,
     quantity: 50,
+    previousClose: 93200,
   ),
   PortfolioItem(
     name: 'SK하이닉스',
@@ -18,6 +19,7 @@ final List<PortfolioItem> mockPortfolio = [
     buyPrice: 150000,
     currentPrice: 198150,
     quantity: 20,
+    previousClose: 195000,
   ),
   PortfolioItem(
     name: 'NAVER',
@@ -25,6 +27,7 @@ final List<PortfolioItem> mockPortfolio = [
     buyPrice: 200000,
     currentPrice: 189600,
     quantity: 10,
+    previousClose: 192000,
   ),
   PortfolioItem(
     name: '카카오',
@@ -32,6 +35,7 @@ final List<PortfolioItem> mockPortfolio = [
     buyPrice: 80000,
     currentPrice: 90240,
     quantity: 50,
+    previousClose: 88800,
   ),
   PortfolioItem(
     name: '현대차',
@@ -39,5 +43,6 @@ final List<PortfolioItem> mockPortfolio = [
     buyPrice: 150000,
     currentPrice: 163050,
     quantity: 20,
+    previousClose: 161000,
   ),
 ];
