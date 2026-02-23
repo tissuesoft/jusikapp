@@ -7,6 +7,7 @@ import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/kakao_login_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/agreement_screen.dart';
 import 'screens/add_multiple_stocks_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/push_service.dart';
@@ -74,6 +75,7 @@ class StockRecommenderApp extends StatelessWidget {
       // 네임드 라우트: 스플래시 → 로그인 → 온보딩 → (종목 추가) → 메인 전환용
       routes: {
         '/login': (context) => const KakaoLoginScreen(),
+        '/agreements': (context) => const AgreementScreen(),
         '/add-stocks': (context) => const AddMultipleStocksScreen(),
         '/main': (context) => const MainScreen(),
       },

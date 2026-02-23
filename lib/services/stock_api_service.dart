@@ -292,6 +292,45 @@ class StockApiService {
     }
   }
 
+  /// POST /auth/agreements — 약관/개인정보/마케팅 동의 제출
+  /// Header: Authorization: Bearer <JWT>
+  /// Body: agreed_terms, agreed_privacy, agreed_marketing(선택)
+  /// 반환: { needAgreement: bool, user } (실패 시 null)
+  Future<Map<String, dynamic>?> sendAgreements({
+    required bool agreedTerms,
+    required bool agreedPrivacy,
+    bool? agreedMarketing,
+  }) async {
+    try {
+      final url = '$_baseUrl/auth/agreements';
+      final body = <String, dynamic>{
+        'agreed_terms': agreedTerms,
+        'agreed_privacy': agreedPrivacy,
+      };
+      if (agreedMarketing != null) {
+        body['agreed_marketing'] = agreedMarketing;
+      }
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _buildHeaders(
+          extraHeaders: {'Content-Type': 'application/json'},
+        ),
+        body: json.encode(body),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        return data;
+      }
+      return null;
+    } catch (e, stackTrace) {
+      print('❌ 약관 동의 API 호출 실패: $e');
+      print('스택 트레이스: $stackTrace');
+      return null;
+    }
+  }
+
   /// 로그인한 유저의 기기로 테스트 푸시 1건 발송
   /// POST /push/test — Header: Authorization: Bearer <JWT>
   /// 반환: 성공 시 true
