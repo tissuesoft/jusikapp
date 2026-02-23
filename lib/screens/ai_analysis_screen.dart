@@ -103,23 +103,23 @@ class _AiAnalysisScreenState extends State<AiAnalysisScreen> {
     );
   }
 
-  /// 초기 메시지(인사 + 자동 분석)를 지연 로드하여 채팅 효과를 준다
-  /// 서버에 채팅 기록이 없을 때만 호출된다
+  /// 초기 메시지(인사)만 로드한다. 서버에 채팅 기록이 없을 때만 호출된다.
+  /// 채팅 내역이 없는 종목은 맨 처음 메시지(인사)만 남기고 나머지는 표시하지 않는다.
   Future<void> _loadInitialMessages() async {
     final initialMessages = getInitialMessages(
       widget.item.name,
       widget.item.ticker,
     );
 
-    // 각 메시지를 순차적으로 추가하여 실제 채팅처럼 보이게 함
-    for (final message in initialMessages) {
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (!mounted) return;
-      setState(() {
-        _messages.add(message);
-      });
-      _scrollToBottom();
-    }
+    if (initialMessages.isEmpty) return;
+    // 채팅 내역이 없는 종목: 첫 메시지(인사)만 추가
+    final firstMessage = initialMessages.first;
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() {
+      _messages.add(firstMessage);
+    });
+    _scrollToBottom();
   }
 
   /// 사용자가 메시지를 전송할 때 호출

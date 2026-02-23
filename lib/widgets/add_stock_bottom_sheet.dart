@@ -344,7 +344,8 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
               _buildSearchField(),
 
               // 검색 결과 드롭다운
-              if (_showSearchResults && (_isSearching || _displaySearchResults.isNotEmpty))
+              if (_showSearchResults &&
+                  (_isSearching || _displaySearchResults.isNotEmpty))
                 _buildSearchResults(),
 
               const SizedBox(height: 24),
@@ -413,7 +414,7 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
           ),
           child: TextField(
             controller: _searchController,
-            onChanged: _onSearchChanged,
+            // onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: '종목명 또는 코드 입력',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
@@ -471,14 +472,20 @@ class _AddStockBottomSheetState extends State<_AddStockBottomSheet> {
                   dense: true,
                   title: Text(
                     stock['name']!,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   subtitle: Text(
                     stock['ticker']!,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                   trailing: Text(
-                    formatPrice(double.tryParse(stock['price'] ?? '0') ?? 0, stock['currency'] ?? '₩'),
+                    formatPrice(
+                      double.tryParse(stock['price'] ?? '0') ?? 0,
+                      stock['currency'] ?? '₩',
+                    ),
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                   ),
                   onTap: () => _selectStock(stock),
