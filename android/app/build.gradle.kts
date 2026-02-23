@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.softtissue.stock_recommender"
+    namespace = "com.softtissue.stock_recommender2"
     // 플러그인 요구사항: kakao(35), path_provider/shared_preferences/url_launcher(36), androidx(36)
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.softtissue.stock_recommender"
+        applicationId = "com.softtissue.stock_recommender2"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
