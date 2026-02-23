@@ -1,19 +1,27 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
 
+// 🔐 key.properties 불러오기
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.softtissue.stock_recommender2"
-    // 플러그인 요구사항: kakao(35), path_provider/shared_preferences/url_launcher(36), androidx(36)
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        // flutter_local_notifications 등 Java 8+ API 사용을 위한 core library desugaring
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -31,33 +39,26 @@ android {
         versionName = flutter.versionName
     }
 
-    // CI(GitHub Actions)에서 환경변수로 키스토어 경로·비밀번호 전달 시 release 서명 사용
-    val releaseKeystorePath = System.getenv("KEYSTORE_PATH")
-    if (releaseKeystorePath != null) {
-        signingConfigs {
-            create("release") {
-                storeFile = file(releaseKeystorePath)
-                storePassword = System.getenv("STORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: ""
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-            }
+    // 🔐 release 서명 설정
+    signingConfigs {
+        create("release") {
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (releaseKeystorePath != null) {
-                signingConfigs.getByName("release")
-            } else {
-                // 로컬: release도 debug 키로 서명 (flutter run --release용)
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
 
 dependencies {
-    // flutter_local_notifications 요구: Java 8+ API를 낮은 minSdk에서 사용하기 위한 desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
